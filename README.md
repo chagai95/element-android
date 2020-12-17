@@ -29,6 +29,10 @@ The team will work to add them on a regular basis.
 
 ## Contributing
 
+Make sure to install Android SDK API 29!!!!
+
+Android Studio / Tools / SDK Manager install 29 and select it then unselect 30
+
 Please refer to [CONTRIBUTING.md](https://github.com/vector-im/element-android/blob/develop/CONTRIBUTING.md) if you want to contribute on Matrix Android projects!
 
 Come chat with the community in the dedicated Matrix [room](https://matrix.to/#/#element-android:matrix.org).
