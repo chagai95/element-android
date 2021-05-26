@@ -1,6 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/coordinatorLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -27,6 +29,7 @@
                     android:id="@+id/createRoomClose"
                     android:layout_width="@dimen/layout_touch_size"
                     android:layout_height="@dimen/layout_touch_size"
+                    android:contentDescription="@string/action_close"
                     android:scaleType="center"
                     android:src="@drawable/ic_x_18dp"
                     app:layout_constraintBottom_toBottomOf="parent"
@@ -67,7 +70,9 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <include layout="@layout/merge_overlay_waiting_view" />
+    <include
+        android:id="@+id/waiting_view"
+        layout="@layout/merge_overlay_waiting_view" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

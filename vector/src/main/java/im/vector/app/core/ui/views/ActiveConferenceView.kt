@@ -23,10 +23,10 @@ import android.text.style.ClickableSpan
 import android.util.AttributeSet
 import android.view.View
 import android.widget.RelativeLayout
-import android.widget.TextView
 import androidx.core.view.isVisible
 import im.vector.app.R
 import im.vector.app.core.utils.tappableMatchingText
+import im.vector.app.databinding.ViewActiveConferenceViewBinding
 import im.vector.app.features.home.room.detail.RoomDetailViewState
 import im.vector.app.features.themes.ThemeUtils
 import org.matrix.android.sdk.api.session.room.model.Membership
@@ -46,7 +46,9 @@ class ActiveConferenceView @JvmOverloads constructor(
     }
 
     var callback: Callback? = null
-    var jitsiWidget: Widget? = null
+    private var jitsiWidget: Widget? = null
+
+    private lateinit var views: ViewActiveConferenceViewBinding
 
     init {
         setupView()
@@ -54,6 +56,7 @@ class ActiveConferenceView @JvmOverloads constructor(
 
     private fun setupView() {
         inflate(context, R.layout.view_active_conference_view, this)
+        views = ViewActiveConferenceViewBinding.bind(this)
         setBackgroundColor(ThemeUtils.getColor(context, R.attr.colorPrimary))
 
         // "voice" and "video" texts are underlined and clickable
@@ -78,12 +81,12 @@ class ActiveConferenceView @JvmOverloads constructor(
             }
         })
 
-        findViewById<TextView>(R.id.activeConferenceInfo).apply {
+        views.activeConferenceInfo.apply {
             text = styledText
             movementMethod = LinkMovementMethod.getInstance()
         }
 
-        findViewById<TextView>(R.id.deleteWidgetButton).setOnClickListener {
+        views.deleteWidgetButton.setOnClickListener {
             jitsiWidget?.let { callback?.onDelete(it) }
         }
     }
@@ -92,20 +95,14 @@ class ActiveConferenceView @JvmOverloads constructor(
         val summary = state.asyncRoomSummary()
         if (summary?.membership == Membership.JOIN) {
             // We only display banner for 'live' widgets
-            val activeConf =
-                    state.activeRoomWidgets()?.firstOrNull {
-                        // for now only jitsi?
-                        it.type == WidgetType.Jitsi
-                    }
-
-            if (activeConf == null) {
-                isVisible = false
-            } else {
-                isVisible = true
-                jitsiWidget = activeConf
+            jitsiWidget = state.activeRoomWidgets()?.firstOrNull {
+                // for now only jitsi?
+                it.type == WidgetType.Jitsi
             }
+
+            isVisible = jitsiWidget != null
             // if sent by me or if i can moderate?
-            findViewById<TextView>(R.id.deleteWidgetButton).isVisible = state.isAllowedToManageWidgets
+            views.deleteWidgetButton.isVisible = state.isAllowedToManageWidgets
         } else {
             isVisible = false
         }

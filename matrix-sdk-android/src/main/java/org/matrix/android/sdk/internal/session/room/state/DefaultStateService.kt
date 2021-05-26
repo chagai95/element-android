@@ -18,35 +18,33 @@ package org.matrix.android.sdk.internal.session.room.state
 
 import android.net.Uri
 import androidx.lifecycle.LiveData
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import dagger.assisted.AssistedFactory
 import org.matrix.android.sdk.api.query.QueryStringValue
 import org.matrix.android.sdk.api.session.events.model.Event
 import org.matrix.android.sdk.api.session.events.model.EventType
 import org.matrix.android.sdk.api.session.events.model.toContent
 import org.matrix.android.sdk.api.session.room.model.GuestAccess
 import org.matrix.android.sdk.api.session.room.model.RoomCanonicalAliasContent
-import org.matrix.android.sdk.api.session.room.model.RoomGuestAccessContent
 import org.matrix.android.sdk.api.session.room.model.RoomHistoryVisibility
 import org.matrix.android.sdk.api.session.room.model.RoomJoinRules
-import org.matrix.android.sdk.api.session.room.model.RoomJoinRulesContent
 import org.matrix.android.sdk.api.session.room.state.StateService
 import org.matrix.android.sdk.api.util.JsonDict
 import org.matrix.android.sdk.api.util.MimeTypes
 import org.matrix.android.sdk.api.util.Optional
 import org.matrix.android.sdk.internal.session.content.FileUploader
-import org.matrix.android.sdk.internal.session.room.alias.AddRoomAliasTask
+import java.lang.UnsupportedOperationException
 
 internal class DefaultStateService @AssistedInject constructor(@Assisted private val roomId: String,
                                                                private val stateEventDataSource: StateEventDataSource,
                                                                private val sendStateTask: SendStateTask,
-                                                               private val fileUploader: FileUploader,
-                                                               private val addRoomAliasTask: AddRoomAliasTask
+                                                               private val fileUploader: FileUploader
 ) : StateService {
 
-    @AssistedInject.Factory
+    @AssistedFactory
     interface Factory {
-        fun create(roomId: String): StateService
+        fun create(roomId: String): DefaultStateService
     }
 
     override fun getStateEvent(eventType: String, stateKey: QueryStringValue): Event? {
@@ -74,9 +72,17 @@ internal class DefaultStateService @AssistedInject constructor(@Assisted private
                 roomId = roomId,
                 stateKey = stateKey,
                 eventType = eventType,
-                body = body
+                body = body.toSafeJson(eventType)
         )
-        sendStateTask.execute(params)
+        sendStateTask.executeRetry(params, 3)
+    }
+
+    private fun JsonDict.toSafeJson(eventType: String): JsonDict {
+        // Safe treatment for PowerLevelContent
+        return when (eventType) {
+            EventType.STATE_ROOM_POWER_LEVELS -> toSafePowerLevelsContentDict()
+            else                              -> this
+        }
     }
 
     override suspend fun updateTopic(topic: String) {
@@ -122,16 +128,17 @@ internal class DefaultStateService @AssistedInject constructor(@Assisted private
 
     override suspend fun updateJoinRule(joinRules: RoomJoinRules?, guestAccess: GuestAccess?) {
         if (joinRules != null) {
+            if (joinRules == RoomJoinRules.RESTRICTED) throw UnsupportedOperationException("No yet supported")
             sendStateEvent(
                     eventType = EventType.STATE_ROOM_JOIN_RULES,
-                    body = RoomJoinRulesContent(joinRules).toContent(),
+                    body = mapOf("join_rule" to joinRules),
                     stateKey = null
             )
         }
         if (guestAccess != null) {
             sendStateEvent(
                     eventType = EventType.STATE_ROOM_GUEST_ACCESS,
-                    body = RoomGuestAccessContent(guestAccess).toContent(),
+                    body = mapOf("guest_access" to guestAccess),
                     stateKey = null
             )
         }

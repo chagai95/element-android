@@ -25,6 +25,7 @@ import im.vector.app.features.crypto.verification.epoxy.bottomSheetVerificationA
 import im.vector.app.features.crypto.verification.epoxy.bottomSheetVerificationBigImageItem
 import im.vector.app.features.crypto.verification.epoxy.bottomSheetVerificationNoticeItem
 import im.vector.app.features.html.EventHtmlRenderer
+import org.matrix.android.sdk.api.crypto.RoomEncryptionTrustLevel
 import javax.inject.Inject
 
 class VerificationConclusionController @Inject constructor(
@@ -44,19 +45,20 @@ class VerificationConclusionController @Inject constructor(
 
     override fun buildModels() {
         val state = viewState ?: return
+        val host = this
 
         when (state.conclusionState) {
             ConclusionState.SUCCESS   -> {
                 bottomSheetVerificationNoticeItem {
                     id("notice")
-                    notice(stringProvider.getString(
+                    notice(host.stringProvider.getString(
                             if (state.isSelfVerification) R.string.verification_conclusion_ok_self_notice
                             else R.string.verification_conclusion_ok_notice))
                 }
 
                 bottomSheetVerificationBigImageItem {
                     id("image")
-                    imageRes(R.drawable.ic_shield_trusted)
+                    roomEncryptionTrustLevel(RoomEncryptionTrustLevel.Trusted)
                 }
 
                 bottomDone()
@@ -64,17 +66,17 @@ class VerificationConclusionController @Inject constructor(
             ConclusionState.WARNING   -> {
                 bottomSheetVerificationNoticeItem {
                     id("notice")
-                    notice(stringProvider.getString(R.string.verification_conclusion_not_secure))
+                    notice(host.stringProvider.getString(R.string.verification_conclusion_not_secure))
                 }
 
                 bottomSheetVerificationBigImageItem {
                     id("image")
-                    imageRes(R.drawable.ic_shield_warning)
+                    roomEncryptionTrustLevel(RoomEncryptionTrustLevel.Warning)
                 }
 
                 bottomSheetVerificationNoticeItem {
                     id("warning_notice")
-                    notice(eventHtmlRenderer.render(stringProvider.getString(R.string.verification_conclusion_compromised)))
+                    notice(host.eventHtmlRenderer.render(host.stringProvider.getString(R.string.verification_conclusion_compromised)))
                 }
 
                 bottomDone()
@@ -82,7 +84,7 @@ class VerificationConclusionController @Inject constructor(
             ConclusionState.CANCELLED -> {
                 bottomSheetVerificationNoticeItem {
                     id("notice_cancelled")
-                    notice(stringProvider.getString(R.string.verify_cancelled_notice))
+                    notice(host.stringProvider.getString(R.string.verify_cancelled_notice))
                 }
 
                 dividerItem {
@@ -91,28 +93,29 @@ class VerificationConclusionController @Inject constructor(
 
                 bottomSheetVerificationActionItem {
                     id("got_it")
-                    title(stringProvider.getString(R.string.sas_got_it))
-                    titleColor(colorProvider.getColor(R.color.riotx_accent))
+                    title(host.stringProvider.getString(R.string.sas_got_it))
+                    titleColor(host.colorProvider.getColor(R.color.riotx_accent))
                     iconRes(R.drawable.ic_arrow_right)
-                    iconColor(colorProvider.getColor(R.color.riotx_accent))
-                    listener { listener?.onButtonTapped() }
+                    iconColor(host.colorProvider.getColor(R.color.riotx_accent))
+                    listener { host.listener?.onButtonTapped() }
                 }
             }
         }
     }
 
     private fun bottomDone() {
+        val host = this
         dividerItem {
             id("sep0")
         }
 
         bottomSheetVerificationActionItem {
             id("done")
-            title(stringProvider.getString(R.string.done))
-            titleColor(colorProvider.getColorFromAttribute(R.attr.riotx_text_primary))
+            title(host.stringProvider.getString(R.string.done))
+            titleColor(host.colorProvider.getColorFromAttribute(R.attr.riotx_text_primary))
             iconRes(R.drawable.ic_arrow_right)
-            iconColor(colorProvider.getColorFromAttribute(R.attr.riotx_text_primary))
-            listener { listener?.onButtonTapped() }
+            iconColor(host.colorProvider.getColorFromAttribute(R.attr.riotx_text_primary))
+            listener { host.listener?.onButtonTapped() }
         }
     }
 

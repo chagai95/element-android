@@ -5,7 +5,7 @@
     android:id="@+id/rootConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?riotx_header_panel_background">
+    android:background="?riotx_background">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/roomSettingsToolbar"
@@ -28,10 +28,20 @@
                 android:layout_height="40dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
+                android:contentDescription="@string/avatar"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                tools:src="@tools:sample/avatars" />
+                tools:src="@sample/room_round_avatars" />
+
+            <im.vector.app.core.ui.views.ShieldImageView
+                android:id="@+id/roomSettingsDecorationToolbarAvatarImageView"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:layout_constraintCircle="@+id/roomSettingsToolbarAvatarImageView"
+                app:layout_constraintCircleAngle="135"
+                app:layout_constraintCircleRadius="20dp"
+                tools:ignore="MissingConstraints" />
 
             <TextView
                 android:id="@+id/roomSettingsToolbarTitleView"
@@ -47,13 +57,14 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/roomSettingsToolbarAvatarImageView"
                 app:layout_constraintTop_toTopOf="parent"
-                tools:text="@sample/matrix.json/data/roomName" />
+                tools:text="@sample/rooms.json/data/name" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.appcompat.widget.Toolbar>
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:id="@+id/coordinatorLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -101,6 +112,8 @@
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-    <include layout="@layout/merge_overlay_waiting_view" />
+    <include
+        android:id="@+id/waiting_view"
+        layout="@layout/merge_overlay_waiting_view" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

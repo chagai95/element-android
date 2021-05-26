@@ -16,8 +16,8 @@
 
 package org.matrix.android.sdk.internal.session.media
 
-import org.greenrobot.eventbus.EventBus
 import org.matrix.android.sdk.api.util.JsonDict
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.task.Task
 import javax.inject.Inject
@@ -31,12 +31,12 @@ internal interface GetRawPreviewUrlTask : Task<GetRawPreviewUrlTask.Params, Json
 
 internal class DefaultGetRawPreviewUrlTask @Inject constructor(
         private val mediaAPI: MediaAPI,
-        private val eventBus: EventBus
+        private val globalErrorReceiver: GlobalErrorReceiver
 ) : GetRawPreviewUrlTask {
 
     override suspend fun execute(params: GetRawPreviewUrlTask.Params): JsonDict {
-        return executeRequest(eventBus) {
-            apiCall = mediaAPI.getPreviewUrlData(params.url, params.timestamp)
+        return executeRequest(globalErrorReceiver) {
+            mediaAPI.getPreviewUrlData(params.url, params.timestamp)
         }
     }
 }

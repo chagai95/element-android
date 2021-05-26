@@ -17,27 +17,34 @@
 package im.vector.app.features.home
 
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
+import androidx.core.view.isVisible
 import com.airbnb.mvrx.activityViewModel
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
 import com.google.android.material.badge.BadgeDrawable
 import im.vector.app.R
+import im.vector.app.RoomGroupingMethod
 import im.vector.app.core.extensions.commitTransaction
-import im.vector.app.core.glide.GlideApp
+import im.vector.app.core.extensions.toMvRxBundle
 import im.vector.app.core.platform.ToolbarConfigurable
 import im.vector.app.core.platform.VectorBaseActivity
 import im.vector.app.core.platform.VectorBaseFragment
-import im.vector.app.core.ui.views.ActiveCallView
-import im.vector.app.core.ui.views.ActiveCallViewHolder
+import im.vector.app.core.ui.views.CurrentCallsView
 import im.vector.app.core.ui.views.KeysBackupBanner
-import im.vector.app.features.call.SharedActiveCallViewModel
+import im.vector.app.core.ui.views.KnownCallsViewHolder
+import im.vector.app.databinding.FragmentHomeDetailBinding
+import im.vector.app.features.call.SharedKnownCallsViewModel
 import im.vector.app.features.call.VectorCallActivity
-import im.vector.app.features.call.WebRtcPeerConnectionManager
+import im.vector.app.features.call.webrtc.WebRtcCallManager
 import im.vector.app.features.home.room.list.RoomListFragment
 import im.vector.app.features.home.room.list.RoomListParams
+import im.vector.app.features.home.room.list.UnreadCounterBadgeView
 import im.vector.app.features.popup.PopupAlertManager
 import im.vector.app.features.popup.VerificationVectorAlert
 import im.vector.app.features.settings.VectorPreferences
@@ -46,41 +53,67 @@ import im.vector.app.features.themes.ThemeUtils
 import im.vector.app.features.workers.signout.BannerState
 import im.vector.app.features.workers.signout.ServerBackupStatusViewModel
 import im.vector.app.features.workers.signout.ServerBackupStatusViewState
-import kotlinx.android.synthetic.main.fragment_home_detail.*
 import org.matrix.android.sdk.api.session.group.model.GroupSummary
-import org.matrix.android.sdk.api.util.toMatrixItem
+import org.matrix.android.sdk.api.session.room.model.RoomSummary
 import org.matrix.android.sdk.internal.crypto.model.rest.DeviceInfo
-import timber.log.Timber
 import javax.inject.Inject
-
-private const val INDEX_PEOPLE = 0
-private const val INDEX_ROOMS = 1
-private const val INDEX_CATCHUP = 2
 
 class HomeDetailFragment @Inject constructor(
         val homeDetailViewModelFactory: HomeDetailViewModel.Factory,
         private val serverBackupStatusViewModelFactory: ServerBackupStatusViewModel.Factory,
         private val avatarRenderer: AvatarRenderer,
         private val alertManager: PopupAlertManager,
-        private val webRtcPeerConnectionManager: WebRtcPeerConnectionManager,
+        private val callManager: WebRtcCallManager,
         private val vectorPreferences: VectorPreferences
-) : VectorBaseFragment(), KeysBackupBanner.Delegate, ActiveCallView.Callback, ServerBackupStatusViewModel.Factory {
+) : VectorBaseFragment<FragmentHomeDetailBinding>(),
+        KeysBackupBanner.Delegate,
+        CurrentCallsView.Callback,
+        ServerBackupStatusViewModel.Factory {
 
     private val viewModel: HomeDetailViewModel by fragmentViewModel()
     private val unknownDeviceDetectorSharedViewModel: UnknownDeviceDetectorSharedViewModel by activityViewModel()
+    private val unreadMessagesSharedViewModel: UnreadMessagesSharedViewModel by activityViewModel()
     private val serverBackupStatusViewModel: ServerBackupStatusViewModel by activityViewModel()
 
     private lateinit var sharedActionViewModel: HomeSharedActionViewModel
-    private lateinit var sharedCallActionViewModel: SharedActiveCallViewModel
+    private lateinit var sharedCallActionViewModel: SharedKnownCallsViewModel
 
-    override fun getLayoutResId() = R.layout.fragment_home_detail
+    private var hasUnreadRooms = false
+        set(value) {
+            if (value != field) {
+                field = value
+                invalidateOptionsMenu()
+            }
+        }
 
-    private val activeCallViewHolder = ActiveCallViewHolder()
+    override fun getMenuRes() = R.menu.room_list
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_home_mark_all_as_read -> {
+                viewModel.handle(HomeDetailAction.MarkAllRoomsRead)
+                return true
+            }
+        }
+
+        return super.onOptionsItemSelected(item)
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu) {
+        menu.findItem(R.id.menu_home_mark_all_as_read).isVisible = hasUnreadRooms
+        super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentHomeDetailBinding {
+        return FragmentHomeDetailBinding.inflate(inflater, container, false)
+    }
+
+    private val activeCallViewHolder = KnownCallsViewHolder()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         sharedActionViewModel = activityViewModelProvider.get(HomeSharedActionViewModel::class.java)
-        sharedCallActionViewModel = activityViewModelProvider.get(SharedActiveCallViewModel::class.java)
+        sharedCallActionViewModel = activityViewModelProvider.get(SharedKnownCallsViewModel::class.java)
 
         setupBottomNavigationView()
         setupToolbar()
@@ -89,12 +122,20 @@ class HomeDetailFragment @Inject constructor(
 
         withState(viewModel) {
             // Update the navigation view if needed (for when we restore the tabs)
-            bottomNavigationView.selectedItemId = it.displayMode.toMenuId()
+            views.bottomNavigationView.selectedItemId = it.displayMode.toMenuId()
         }
 
-        viewModel.selectSubscribe(this, HomeDetailViewState::groupSummary) { groupSummary ->
-            onGroupChange(groupSummary.orNull())
+        viewModel.selectSubscribe(this, HomeDetailViewState::roomGroupingMethod) { roomGroupingMethod ->
+            when (roomGroupingMethod) {
+                is RoomGroupingMethod.ByLegacyGroup -> {
+                    onGroupChange(roomGroupingMethod.groupSummary)
+                }
+                is RoomGroupingMethod.BySpace -> {
+                    onSpaceChange(roomGroupingMethod.spaceSummary)
+                }
+            }
         }
+
         viewModel.selectSubscribe(this, HomeDetailViewState::displayMode) { displayMode ->
             switchDisplayMode(displayMode)
         }
@@ -117,10 +158,19 @@ class HomeDetailFragment @Inject constructor(
             }
         }
 
+        unreadMessagesSharedViewModel.subscribe { state ->
+            views.drawerUnreadCounterBadgeView.render(
+                    UnreadCounterBadgeView.State(
+                            count = state.otherSpacesUnread.totalCount,
+                            highlighted = state.otherSpacesUnread.isHighlight
+                    )
+            )
+        }
+
         sharedCallActionViewModel
-                .activeCall
-                .observe(viewLifecycleOwner, Observer {
-                    activeCallViewHolder.updateCall(it, webRtcPeerConnectionManager)
+                .liveKnownCalls
+                .observe(viewLifecycleOwner, {
+                    activeCallViewHolder.updateCall(callManager.getCurrentCall(), callManager.getCalls())
                     invalidateOptionsMenu()
                 })
     }
@@ -132,8 +182,8 @@ class HomeDetailFragment @Inject constructor(
     }
 
     private fun checkNotificationTabStatus() {
-        val wasVisible = bottomNavigationView.menu.findItem(R.id.bottom_action_notification).isVisible
-        bottomNavigationView.menu.findItem(R.id.bottom_action_notification).isVisible = vectorPreferences.labAddNotificationTab()
+        val wasVisible = views.bottomNavigationView.menu.findItem(R.id.bottom_action_notification).isVisible
+        views.bottomNavigationView.menu.findItem(R.id.bottom_action_notification).isVisible = vectorPreferences.labAddNotificationTab()
         if (wasVisible && !vectorPreferences.labAddNotificationTab()) {
             // As we hide it check if it's not the current item!
             withState(viewModel) {
@@ -151,12 +201,12 @@ class HomeDetailFragment @Inject constructor(
                         uid = uid,
                         title = getString(R.string.new_session),
                         description = getString(R.string.verify_this_session, newest.displayName ?: newest.deviceId ?: ""),
-                        iconId = R.drawable.ic_shield_warning,
-                        matrixItem = user
+                        iconId = R.drawable.ic_shield_warning
                 ).apply {
+                    viewBinder = VerificationVectorAlert.ViewBinder(user, avatarRenderer)
                     colorInt = ContextCompat.getColor(requireActivity(), R.color.riotx_accent)
                     contentAction = Runnable {
-                        (weakCurrentActivity?.get() as? VectorBaseActivity)
+                        (weakCurrentActivity?.get() as? VectorBaseActivity<*>)
                                 ?.navigator
                                 ?.requestSessionVerification(requireContext(), newest.deviceId ?: "")
                         unknownDeviceDetectorSharedViewModel.handle(
@@ -179,12 +229,12 @@ class HomeDetailFragment @Inject constructor(
                         uid = uid,
                         title = getString(R.string.review_logins),
                         description = getString(R.string.verify_other_sessions),
-                        iconId = R.drawable.ic_shield_warning,
-                        matrixItem = user
+                        iconId = R.drawable.ic_shield_warning
                 ).apply {
+                    viewBinder = VerificationVectorAlert.ViewBinder(user, avatarRenderer)
                     colorInt = ContextCompat.getColor(requireActivity(), R.color.riotx_accent)
                     contentAction = Runnable {
-                        (weakCurrentActivity?.get() as? VectorBaseActivity)?.let {
+                        (weakCurrentActivity?.get() as? VectorBaseActivity<*>)?.let {
                             // mark as ignored to avoid showing it again
                             unknownDeviceDetectorSharedViewModel.handle(
                                     UnknownDeviceDetectorSharedViewModel.Action.IgnoreDevice(oldUnverified.mapNotNull { it.deviceId })
@@ -202,9 +252,20 @@ class HomeDetailFragment @Inject constructor(
     }
 
     private fun onGroupChange(groupSummary: GroupSummary?) {
-        groupSummary?.let {
-            // Use GlideApp with activity context to avoid the glideRequests to be paused
-            avatarRenderer.render(it.toMatrixItem(), groupToolbarAvatarImageView, GlideApp.with(requireActivity()))
+        if (groupSummary == null) {
+            views.groupToolbarSpaceTitleView.isVisible = false
+        } else {
+            views.groupToolbarSpaceTitleView.isVisible = true
+            views.groupToolbarSpaceTitleView.text = groupSummary.displayName
+        }
+    }
+
+    private fun onSpaceChange(spaceSummary: RoomSummary?) {
+        if (spaceSummary == null) {
+            views.groupToolbarSpaceTitleView.isVisible = false
+        } else {
+            views.groupToolbarSpaceTitleView.isVisible = true
+            views.groupToolbarSpaceTitleView.text = spaceSummary.displayName
         }
     }
 
@@ -212,20 +273,20 @@ class HomeDetailFragment @Inject constructor(
         serverBackupStatusViewModel
                 .subscribe(this) {
                     when (val banState = it.bannerState.invoke()) {
-                        is BannerState.Setup  -> homeKeysBackupBanner.render(KeysBackupBanner.State.Setup(banState.numberOfKeys), false)
-                        BannerState.BackingUp -> homeKeysBackupBanner.render(KeysBackupBanner.State.BackingUp, false)
+                        is BannerState.Setup -> views.homeKeysBackupBanner.render(KeysBackupBanner.State.Setup(banState.numberOfKeys), false)
+                        BannerState.BackingUp -> views.homeKeysBackupBanner.render(KeysBackupBanner.State.BackingUp, false)
                         null,
-                        BannerState.Hidden    -> homeKeysBackupBanner.render(KeysBackupBanner.State.Hidden, false)
+                        BannerState.Hidden -> views.homeKeysBackupBanner.render(KeysBackupBanner.State.Hidden, false)
                     }
                 }
-        homeKeysBackupBanner.delegate = this
+        views.homeKeysBackupBanner.delegate = this
     }
 
     private fun setupActiveCallView() {
         activeCallViewHolder.bind(
-                activeCallPiP,
-                activeCallView,
-                activeCallPiPWrap,
+                views.activeCallPiP,
+                views.activeCallView,
+                views.activeCallPiPWrap,
                 this
         )
     }
@@ -233,20 +294,35 @@ class HomeDetailFragment @Inject constructor(
     private fun setupToolbar() {
         val parentActivity = vectorBaseActivity
         if (parentActivity is ToolbarConfigurable) {
-            parentActivity.configure(groupToolbar)
+            parentActivity.configure(views.groupToolbar)
         }
-        groupToolbar.title = ""
-        groupToolbarAvatarImageView.debouncedClicks {
+        views.groupToolbar.title = ""
+        views.groupToolbarAvatarImageView.debouncedClicks {
             sharedActionViewModel.post(HomeActivitySharedAction.OpenDrawer)
+        }
+
+        views.homeToolbarContent.debouncedClicks {
+            withState(viewModel) {
+                when (it.roomGroupingMethod) {
+                    is RoomGroupingMethod.ByLegacyGroup -> {
+                        // nothing do far
+                    }
+                    is RoomGroupingMethod.BySpace -> {
+                        it.roomGroupingMethod.spaceSummary?.let {
+                            sharedActionViewModel.post(HomeActivitySharedAction.ShowSpaceSettings(it.roomId))
+                        }
+                    }
+                }
+            }
         }
     }
 
     private fun setupBottomNavigationView() {
-        bottomNavigationView.menu.findItem(R.id.bottom_action_notification).isVisible = vectorPreferences.labAddNotificationTab()
-        bottomNavigationView.setOnNavigationItemSelectedListener {
+        views.bottomNavigationView.menu.findItem(R.id.bottom_action_notification).isVisible = vectorPreferences.labAddNotificationTab()
+        views.bottomNavigationView.setOnNavigationItemSelectedListener {
             val displayMode = when (it.itemId) {
                 R.id.bottom_action_people -> RoomListDisplayMode.PEOPLE
-                R.id.bottom_action_rooms  -> RoomListDisplayMode.ROOMS
+                R.id.bottom_action_rooms -> RoomListDisplayMode.ROOMS
                 else                      -> RoomListDisplayMode.NOTIFICATIONS
             }
             viewModel.handle(HomeDetailAction.SwitchDisplayMode(displayMode))
@@ -266,7 +342,7 @@ class HomeDetailFragment @Inject constructor(
     }
 
     private fun switchDisplayMode(displayMode: RoomListDisplayMode) {
-        groupToolbarTitleView.setText(displayMode.titleRes)
+        views.groupToolbarTitleView.setText(displayMode.titleRes)
         updateSelectedFragment(displayMode)
     }
 
@@ -301,11 +377,13 @@ class HomeDetailFragment @Inject constructor(
     }
 
     override fun invalidate() = withState(viewModel) {
-        Timber.v(it.toString())
-        bottomNavigationView.getOrCreateBadge(R.id.bottom_action_people).render(it.notificationCountPeople, it.notificationHighlightPeople)
-        bottomNavigationView.getOrCreateBadge(R.id.bottom_action_rooms).render(it.notificationCountRooms, it.notificationHighlightRooms)
-        bottomNavigationView.getOrCreateBadge(R.id.bottom_action_notification).render(it.notificationCountCatchup, it.notificationHighlightCatchup)
-        syncStateView.render(it.syncState)
+//        Timber.v(it.toString())
+        views.bottomNavigationView.getOrCreateBadge(R.id.bottom_action_people).render(it.notificationCountPeople, it.notificationHighlightPeople)
+        views.bottomNavigationView.getOrCreateBadge(R.id.bottom_action_rooms).render(it.notificationCountRooms, it.notificationHighlightRooms)
+        views.bottomNavigationView.getOrCreateBadge(R.id.bottom_action_notification).render(it.notificationCountCatchup, it.notificationHighlightCatchup)
+        views.syncStateView.render(it.syncState)
+
+        hasUnreadRooms = it.hasUnreadMessages
     }
 
     private fun BadgeDrawable.render(count: Int, highlight: Boolean) {
@@ -322,19 +400,19 @@ class HomeDetailFragment @Inject constructor(
 
     private fun RoomListDisplayMode.toMenuId() = when (this) {
         RoomListDisplayMode.PEOPLE -> R.id.bottom_action_people
-        RoomListDisplayMode.ROOMS  -> R.id.bottom_action_rooms
+        RoomListDisplayMode.ROOMS -> R.id.bottom_action_rooms
         else                       -> R.id.bottom_action_notification
     }
 
     override fun onTapToReturnToCall() {
-        sharedCallActionViewModel.activeCall.value?.let { call ->
+        callManager.getCurrentCall()?.let { call ->
             VectorCallActivity.newIntent(
                     context = requireContext(),
                     callId = call.callId,
-                    roomId = call.roomId,
-                    otherUserId = call.otherUserId,
-                    isIncomingCall = !call.isOutgoing,
-                    isVideoCall = call.isVideoCall,
+                    roomId = call.mxCall.roomId,
+                    otherUserId = call.mxCall.opponentUserId,
+                    isIncomingCall = !call.mxCall.isOutgoing,
+                    isVideoCall = call.mxCall.isVideoCall,
                     mode = null
             ).let {
                 startActivity(it)

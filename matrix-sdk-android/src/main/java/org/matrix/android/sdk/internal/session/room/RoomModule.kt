@@ -24,6 +24,7 @@ import org.commonmark.renderer.html.HtmlRenderer
 import org.matrix.android.sdk.api.session.file.FileService
 import org.matrix.android.sdk.api.session.room.RoomDirectoryService
 import org.matrix.android.sdk.api.session.room.RoomService
+import org.matrix.android.sdk.api.session.space.SpaceService
 import org.matrix.android.sdk.internal.session.DefaultFileService
 import org.matrix.android.sdk.internal.session.SessionScope
 import org.matrix.android.sdk.internal.session.directory.DirectoryAPI
@@ -39,11 +40,9 @@ import org.matrix.android.sdk.internal.session.room.create.CreateRoomTask
 import org.matrix.android.sdk.internal.session.room.create.DefaultCreateRoomTask
 import org.matrix.android.sdk.internal.session.room.directory.DefaultGetPublicRoomTask
 import org.matrix.android.sdk.internal.session.room.directory.DefaultGetRoomDirectoryVisibilityTask
-import org.matrix.android.sdk.internal.session.room.directory.DefaultGetThirdPartyProtocolsTask
 import org.matrix.android.sdk.internal.session.room.directory.DefaultSetRoomDirectoryVisibilityTask
 import org.matrix.android.sdk.internal.session.room.directory.GetPublicRoomTask
 import org.matrix.android.sdk.internal.session.room.directory.GetRoomDirectoryVisibilityTask
-import org.matrix.android.sdk.internal.session.room.directory.GetThirdPartyProtocolsTask
 import org.matrix.android.sdk.internal.session.room.directory.SetRoomDirectoryVisibilityTask
 import org.matrix.android.sdk.internal.session.room.membership.DefaultLoadRoomMembersTask
 import org.matrix.android.sdk.internal.session.room.membership.LoadRoomMembersTask
@@ -81,14 +80,17 @@ import org.matrix.android.sdk.internal.session.room.tags.DefaultDeleteTagFromRoo
 import org.matrix.android.sdk.internal.session.room.tags.DeleteTagFromRoomTask
 import org.matrix.android.sdk.internal.session.room.timeline.DefaultFetchTokenAndPaginateTask
 import org.matrix.android.sdk.internal.session.room.timeline.DefaultGetContextOfEventTask
+import org.matrix.android.sdk.internal.session.room.timeline.DefaultGetEventTask
 import org.matrix.android.sdk.internal.session.room.timeline.DefaultPaginationTask
 import org.matrix.android.sdk.internal.session.room.timeline.FetchTokenAndPaginateTask
 import org.matrix.android.sdk.internal.session.room.timeline.GetContextOfEventTask
+import org.matrix.android.sdk.internal.session.room.timeline.GetEventTask
 import org.matrix.android.sdk.internal.session.room.timeline.PaginationTask
 import org.matrix.android.sdk.internal.session.room.typing.DefaultSendTypingTask
 import org.matrix.android.sdk.internal.session.room.typing.SendTypingTask
 import org.matrix.android.sdk.internal.session.room.uploads.DefaultGetUploadsTask
 import org.matrix.android.sdk.internal.session.room.uploads.GetUploadsTask
+import org.matrix.android.sdk.internal.session.space.DefaultSpaceService
 import retrofit2.Retrofit
 
 @Module
@@ -136,6 +138,9 @@ internal abstract class RoomModule {
     abstract fun bindRoomService(service: DefaultRoomService): RoomService
 
     @Binds
+    abstract fun bindSpaceService(service: DefaultSpaceService): SpaceService
+
+    @Binds
     abstract fun bindRoomDirectoryService(service: DefaultRoomDirectoryService): RoomDirectoryService
 
     @Binds
@@ -152,9 +157,6 @@ internal abstract class RoomModule {
 
     @Binds
     abstract fun bindSetRoomDirectoryVisibilityTask(task: DefaultSetRoomDirectoryVisibilityTask): SetRoomDirectoryVisibilityTask
-
-    @Binds
-    abstract fun bindGetThirdPartyProtocolsTask(task: DefaultGetThirdPartyProtocolsTask): GetThirdPartyProtocolsTask
 
     @Binds
     abstract fun bindInviteTask(task: DefaultInviteTask): InviteTask
@@ -233,4 +235,7 @@ internal abstract class RoomModule {
 
     @Binds
     abstract fun bindPeekRoomTask(task: DefaultPeekRoomTask): PeekRoomTask
+
+    @Binds
+    abstract fun bindGetEventTask(task: DefaultGetEventTask): GetEventTask
 }

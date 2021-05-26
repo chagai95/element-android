@@ -19,11 +19,19 @@ package org.matrix.android.sdk.common
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.Observer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.matrix.android.sdk.api.Matrix
 import org.matrix.android.sdk.api.MatrixCallback
 import org.matrix.android.sdk.api.MatrixConfiguration
 import org.matrix.android.sdk.api.auth.data.HomeServerConnectionConfig
-import org.matrix.android.sdk.api.auth.data.LoginFlowResult
 import org.matrix.android.sdk.api.auth.registration.RegistrationResult
 import org.matrix.android.sdk.api.session.Session
 import org.matrix.android.sdk.api.session.events.model.EventType
@@ -35,15 +43,6 @@ import org.matrix.android.sdk.api.session.room.timeline.Timeline
 import org.matrix.android.sdk.api.session.room.timeline.TimelineEvent
 import org.matrix.android.sdk.api.session.room.timeline.TimelineSettings
 import org.matrix.android.sdk.api.session.sync.SyncState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import java.util.ArrayList
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -60,7 +59,13 @@ class CommonTestHelper(context: Context) {
     fun getTestInterceptor(session: Session): MockOkHttpInterceptor? = TestNetworkModule.interceptorForSession(session.sessionId) as? MockOkHttpInterceptor
 
     init {
-        Matrix.initialize(context, MatrixConfiguration("TestFlavor"))
+        Matrix.initialize(
+                context,
+                MatrixConfiguration(
+                        applicationFlavor = "TestFlavor",
+                        roomDisplayNameFallbackProvider = TestRoomDisplayNameFallbackProvider()
+                )
+        )
         matrix = Matrix.getInstance(context)
     }
 
@@ -86,7 +91,7 @@ class CommonTestHelper(context: Context) {
      *
      * @param session    the session to sync
      */
-    fun syncSession(session: Session) {
+    fun syncSession(session: Session, timeout: Long = TestConstants.timeOutMillis) {
         val lock = CountDownLatch(1)
 
         val job = GlobalScope.launch(Dispatchers.Main) {
@@ -109,7 +114,7 @@ class CommonTestHelper(context: Context) {
         }
         GlobalScope.launch(Dispatchers.Main) { syncLiveData.observeForever(syncObserver) }
 
-        await(lock)
+        await(lock, timeout)
     }
 
     /**
@@ -119,7 +124,7 @@ class CommonTestHelper(context: Context) {
      * @param message      the message to send
      * @param nbOfMessages the number of time the message will be sent
      */
-    fun sendTextMessage(room: Room, message: String, nbOfMessages: Int): List<TimelineEvent> {
+    fun sendTextMessage(room: Room, message: String, nbOfMessages: Int, timeout: Long = TestConstants.timeOutMillis): List<TimelineEvent> {
         val timeline = room.createTimeline(null, TimelineSettings(10))
         val sentEvents = ArrayList<TimelineEvent>(nbOfMessages)
         val latch = CountDownLatch(1)
@@ -151,7 +156,7 @@ class CommonTestHelper(context: Context) {
             room.sendTextMessage(message + " #" + (i + 1))
         }
         // Wait 3 second more per message
-        await(latch, timeout = TestConstants.timeOutMillis + 3_000L * nbOfMessages)
+        await(latch, timeout = timeout + 3_000L * nbOfMessages)
         timeline.dispose()
 
         // Check that all events has been created
@@ -210,28 +215,27 @@ class CommonTestHelper(context: Context) {
                                      sessionTestParams: SessionTestParams): Session {
         val hs = createHomeServerConfig()
 
-        doSync<LoginFlowResult> {
-            matrix.authenticationService
-                    .getLoginFlow(hs, it)
+        runBlockingTest {
+            matrix.authenticationService.getLoginFlow(hs)
         }
 
-        doSync<RegistrationResult> {
+        runBlockingTest(timeout = 60_000) {
             matrix.authenticationService
                     .getRegistrationWizard()
-                    .createAccount(userName, password, null, it)
+                    .createAccount(userName, password, null)
         }
 
         // Perform dummy step
-        val registrationResult = doSync<RegistrationResult> {
+        val registrationResult = runBlockingTest(timeout = 60_000) {
             matrix.authenticationService
                     .getRegistrationWizard()
-                    .dummy(it)
+                    .dummy()
         }
 
         assertTrue(registrationResult is RegistrationResult.Success)
         val session = (registrationResult as RegistrationResult.Success).session
         if (sessionTestParams.withInitialSync) {
-            syncSession(session)
+            syncSession(session, 60_000)
         }
 
         return session
@@ -249,15 +253,14 @@ class CommonTestHelper(context: Context) {
                                   sessionTestParams: SessionTestParams): Session {
         val hs = createHomeServerConfig()
 
-        doSync<LoginFlowResult> {
-            matrix.authenticationService
-                    .getLoginFlow(hs, it)
+        runBlockingTest {
+            matrix.authenticationService.getLoginFlow(hs)
         }
 
-        val session = doSync<Session> {
+        val session = runBlockingTest {
             matrix.authenticationService
                     .getLoginWizard()
-                    .login(userName, password, "myDevice", it)
+                    .login(userName, password, "myDevice")
         }
 
         if (sessionTestParams.withInitialSync) {
@@ -277,21 +280,19 @@ class CommonTestHelper(context: Context) {
                             password: String): Throwable {
         val hs = createHomeServerConfig()
 
-        doSync<LoginFlowResult> {
-            matrix.authenticationService
-                    .getLoginFlow(hs, it)
+        runBlockingTest {
+            matrix.authenticationService.getLoginFlow(hs)
         }
 
         var requestFailure: Throwable? = null
-        waitWithLatch { latch ->
-            matrix.authenticationService
-                    .getLoginWizard()
-                    .login(userName, password, "myDevice", object : TestMatrixCallback<Session>(latch, onlySuccessful = false) {
-                        override fun onFailure(failure: Throwable) {
-                            requestFailure = failure
-                            super.onFailure(failure)
-                        }
-                    })
+        runBlockingTest {
+            try {
+                matrix.authenticationService
+                        .getLoginWizard()
+                        .login(userName, password, "myDevice")
+            } catch (failure: Throwable) {
+                requestFailure = failure
+            }
         }
 
         assertNotNull(requestFailure)
@@ -378,7 +379,9 @@ class CommonTestHelper(context: Context) {
     fun Iterable<Session>.signOutAndClose() = forEach { signOutAndClose(it) }
 
     fun signOutAndClose(session: Session) {
-        doSync<Unit>(60_000) { session.signOut(true, it) }
+        runBlockingTest(timeout = 60_000) {
+            session.signOut(true)
+        }
         // no need signout will close
         // session.close()
     }
@@ -388,8 +391,8 @@ fun List<TimelineEvent>.checkSendOrder(baseTextMessage: String, numberOfMessages
     return drop(startIndex)
             .take(numberOfMessages)
             .foldRightIndexed(true) { index, timelineEvent, acc ->
-        val body = timelineEvent.root.content.toModel<MessageContent>()?.body
-        val currentMessageSuffix = numberOfMessages - index
-        acc && (body == null || body.startsWith(baseTextMessage) && body.endsWith("#$currentMessageSuffix"))
-    }
+                val body = timelineEvent.root.content.toModel<MessageContent>()?.body
+                val currentMessageSuffix = numberOfMessages - index
+                acc && (body == null || body.startsWith(baseTextMessage) && body.endsWith("#$currentMessageSuffix"))
+            }
 }

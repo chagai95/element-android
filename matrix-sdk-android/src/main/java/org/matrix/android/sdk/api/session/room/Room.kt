@@ -17,7 +17,6 @@
 package org.matrix.android.sdk.api.session.room
 
 import androidx.lifecycle.LiveData
-import org.matrix.android.sdk.api.MatrixCallback
 import org.matrix.android.sdk.api.session.room.alias.AliasService
 import org.matrix.android.sdk.api.session.room.call.RoomCallService
 import org.matrix.android.sdk.api.session.room.crypto.RoomCryptoService
@@ -35,7 +34,7 @@ import org.matrix.android.sdk.api.session.room.timeline.TimelineService
 import org.matrix.android.sdk.api.session.room.typing.TypingService
 import org.matrix.android.sdk.api.session.room.uploads.UploadsService
 import org.matrix.android.sdk.api.session.search.SearchResult
-import org.matrix.android.sdk.api.util.Cancelable
+import org.matrix.android.sdk.api.session.space.Space
 import org.matrix.android.sdk.api.util.Optional
 
 /**
@@ -84,14 +83,18 @@ interface Room :
      * @param beforeLimit how many events before the result are returned.
      * @param afterLimit how many events after the result are returned.
      * @param includeProfile requests that the server returns the historic profile information for the users that sent the events that were returned.
-     * @param callback Callback to get the search result
+     * @return The search result
      */
-    fun search(searchTerm: String,
+    suspend fun search(searchTerm: String,
                nextBatch: String?,
                orderByRecent: Boolean,
                limit: Int,
                beforeLimit: Int,
                afterLimit: Int,
-               includeProfile: Boolean,
-               callback: MatrixCallback<SearchResult>): Cancelable
+               includeProfile: Boolean): SearchResult
+
+    /**
+     * Use this room as a Space, if the type is correct.
+     */
+    fun asSpace(): Space?
 }

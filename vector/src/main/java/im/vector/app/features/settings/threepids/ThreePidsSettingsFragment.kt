@@ -16,14 +16,17 @@
 
 package im.vector.app.features.settings.threepids
 
+import android.app.Activity
 import android.content.DialogInterface
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
 import im.vector.app.R
-import im.vector.app.core.dialogs.PromptPasswordDialog
 import im.vector.app.core.dialogs.withColoredButton
 import im.vector.app.core.extensions.cleanup
 import im.vector.app.core.extensions.configureWith
@@ -32,10 +35,12 @@ import im.vector.app.core.extensions.getFormattedValue
 import im.vector.app.core.extensions.hideKeyboard
 import im.vector.app.core.extensions.isEmail
 import im.vector.app.core.extensions.isMsisdn
+import im.vector.app.core.extensions.registerStartForActivityResult
 import im.vector.app.core.platform.OnBackPressed
-import im.vector.app.core.platform.VectorBaseActivity
 import im.vector.app.core.platform.VectorBaseFragment
-import kotlinx.android.synthetic.main.fragment_generic_recycler.*
+import im.vector.app.databinding.FragmentGenericRecyclerBinding
+import im.vector.app.features.auth.ReAuthActivity
+import org.matrix.android.sdk.api.auth.data.LoginFlowTypes
 import org.matrix.android.sdk.api.session.identity.ThreePid
 import javax.inject.Inject
 
@@ -43,43 +48,72 @@ class ThreePidsSettingsFragment @Inject constructor(
         private val viewModelFactory: ThreePidsSettingsViewModel.Factory,
         private val epoxyController: ThreePidsSettingsController
 ) :
-        VectorBaseFragment(),
+        VectorBaseFragment<FragmentGenericRecyclerBinding>(),
         OnBackPressed,
         ThreePidsSettingsViewModel.Factory by viewModelFactory,
         ThreePidsSettingsController.InteractionListener {
 
     private val viewModel: ThreePidsSettingsViewModel by fragmentViewModel()
 
-    override fun getLayoutResId() = R.layout.fragment_generic_recycler
+    override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentGenericRecyclerBinding {
+        return FragmentGenericRecyclerBinding.inflate(inflater, container, false)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        genericRecyclerView.configureWith(epoxyController)
+        views.genericRecyclerView.configureWith(epoxyController)
         epoxyController.interactionListener = this
 
         viewModel.observeViewEvents {
             when (it) {
-                is ThreePidsSettingsViewEvents.Failure      -> displayErrorDialog(it.throwable)
-                ThreePidsSettingsViewEvents.RequestPassword -> askUserPassword()
+                is ThreePidsSettingsViewEvents.Failure -> displayErrorDialog(it.throwable)
+                is ThreePidsSettingsViewEvents.RequestReAuth -> askAuthentication(it)
             }.exhaustive
         }
     }
 
-    private fun askUserPassword() {
-        PromptPasswordDialog().show(requireActivity()) { password ->
-            viewModel.handle(ThreePidsSettingsAction.AccountPassword(password))
+    //    private fun askUserPassword() {
+//        PromptPasswordDialog().show(requireActivity()) { password ->
+//            viewModel.handle(ThreePidsSettingsAction.AccountPassword(password))
+//        }
+//    }
+
+    private fun askAuthentication(event: ThreePidsSettingsViewEvents.RequestReAuth) {
+        ReAuthActivity.newIntent(requireContext(),
+                event.registrationFlowResponse,
+                event.lastErrorCode,
+                getString(R.string.settings_add_email_address)).let { intent ->
+            reAuthActivityResultLauncher.launch(intent)
+        }
+    }
+    private val reAuthActivityResultLauncher = registerStartForActivityResult { activityResult ->
+        if (activityResult.resultCode == Activity.RESULT_OK) {
+            when (activityResult.data?.extras?.getString(ReAuthActivity.RESULT_FLOW_TYPE)) {
+                LoginFlowTypes.SSO -> {
+                    viewModel.handle(ThreePidsSettingsAction.SsoAuthDone)
+                }
+                LoginFlowTypes.PASSWORD -> {
+                    val password = activityResult.data?.extras?.getString(ReAuthActivity.RESULT_VALUE) ?: ""
+                    viewModel.handle(ThreePidsSettingsAction.PasswordAuthDone(password))
+                }
+                else                    -> {
+                    viewModel.handle(ThreePidsSettingsAction.ReAuthCancelled)
+                }
+            }
+        } else {
+            viewModel.handle(ThreePidsSettingsAction.ReAuthCancelled)
         }
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
-        genericRecyclerView.cleanup()
+        views.genericRecyclerView.cleanup()
         epoxyController.interactionListener = null
+        super.onDestroyView()
     }
 
     override fun onResume() {
         super.onResume()
-        (activity as? VectorBaseActivity)?.supportActionBar?.setTitle(R.string.settings_emails_and_phone_numbers_title)
+        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_emails_and_phone_numbers_title)
     }
 
     override fun invalidate() = withState(viewModel) { state ->

@@ -24,15 +24,16 @@
             android:id="@+id/knownUserAvatar"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            tools:src="@tools:sample/avatars" />
+            android:contentDescription="@string/avatar"
+            tools:src="@sample/user_round_avatars" />
 
         <ImageView
             android:id="@+id/knownUserAvatarChecked"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:contentDescription="@string/a11y_checked"
             android:scaleType="centerInside"
             android:src="@drawable/ic_material_done"
-            android:visibility="visible"
             app:tint="@android:color/white"
             tools:ignore="MissingPrefix" />
     </FrameLayout>
@@ -53,7 +54,7 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/knownUserAvatarContainer"
         app:layout_constraintTop_toTopOf="parent"
-        tools:text="@tools:sample/full_names" />
+        tools:text="@sample/users.json/data/displayName" />
 
     <TextView
         android:id="@+id/knownUserID"
@@ -68,6 +69,6 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/knownUserName"
         app:layout_constraintTop_toBottomOf="@+id/knownUserName"
-        tools:text="Blabla" />
+        tools:text="@sample/users.json/data/id" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

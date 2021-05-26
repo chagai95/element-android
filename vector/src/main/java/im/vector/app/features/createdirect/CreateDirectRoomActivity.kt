@@ -45,19 +45,20 @@ import im.vector.app.core.utils.checkPermissions
 import im.vector.app.core.utils.onPermissionDeniedSnackbar
 import im.vector.app.features.contactsbook.ContactsBookFragment
 import im.vector.app.features.contactsbook.ContactsBookViewModel
+import im.vector.app.features.contactsbook.ContactsBookViewState
 import im.vector.app.features.userdirectory.UserListFragment
 import im.vector.app.features.userdirectory.UserListFragmentArgs
 import im.vector.app.features.userdirectory.UserListSharedAction
 import im.vector.app.features.userdirectory.UserListSharedActionViewModel
 import im.vector.app.features.userdirectory.UserListViewModel
 import im.vector.app.features.userdirectory.UserListViewState
-import kotlinx.android.synthetic.main.activity.*
+
 import org.matrix.android.sdk.api.failure.Failure
 import org.matrix.android.sdk.api.session.room.failure.CreateRoomFailure
 import java.net.HttpURLConnection
 import javax.inject.Inject
 
-class CreateDirectRoomActivity : SimpleFragmentActivity(), UserListViewModel.Factory {
+class CreateDirectRoomActivity : SimpleFragmentActivity(), UserListViewModel.Factory, CreateDirectRoomViewModel.Factory, ContactsBookViewModel.Factory {
 
     private val viewModel: CreateDirectRoomViewModel by viewModel()
     private lateinit var sharedActionViewModel: UserListSharedActionViewModel
@@ -71,13 +72,15 @@ class CreateDirectRoomActivity : SimpleFragmentActivity(), UserListViewModel.Fac
         injector.inject(this)
     }
 
-    override fun create(initialState: UserListViewState): UserListViewModel {
-        return userListViewModelFactory.create(initialState)
-    }
+    override fun create(initialState: UserListViewState) = userListViewModelFactory.create(initialState)
+
+    override fun create(initialState: CreateDirectRoomViewState) = createDirectRoomViewModelFactory.create(initialState)
+
+    override fun create(initialState: ContactsBookViewState) = contactsBookViewModelFactory.create(initialState)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        toolbar.visibility = View.GONE
+        views.toolbar.visibility = View.GONE
 
         sharedActionViewModel = viewModelProvider.get(UserListSharedActionViewModel::class.java)
         sharedActionViewModel
@@ -143,7 +146,7 @@ class CreateDirectRoomActivity : SimpleFragmentActivity(), UserListViewModel.Fac
     private fun onMenuItemSelected(action: UserListSharedAction.OnMenuItemSelected) {
         if (action.itemId == R.id.action_create_direct_room) {
             viewModel.handle(CreateDirectRoomAction.CreateRoomAndInviteSelectedUsers(
-                    action.invitees,
+                    action.selections,
                     null
             ))
         }

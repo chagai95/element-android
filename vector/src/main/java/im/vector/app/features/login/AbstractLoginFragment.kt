@@ -21,6 +21,7 @@ import android.view.View
 import androidx.annotation.CallSuper
 import androidx.appcompat.app.AlertDialog
 import androidx.transition.TransitionInflater
+import androidx.viewbinding.ViewBinding
 import com.airbnb.mvrx.activityViewModel
 import com.airbnb.mvrx.withState
 import im.vector.app.R
@@ -28,6 +29,7 @@ import im.vector.app.core.dialogs.UnrecognizedCertificateDialog
 import im.vector.app.core.extensions.exhaustive
 import im.vector.app.core.platform.OnBackPressed
 import im.vector.app.core.platform.VectorBaseFragment
+import kotlinx.coroutines.CancellationException
 import org.matrix.android.sdk.api.failure.Failure
 import org.matrix.android.sdk.api.failure.MatrixError
 import javax.net.ssl.HttpsURLConnection
@@ -35,7 +37,7 @@ import javax.net.ssl.HttpsURLConnection
 /**
  * Parent Fragment for all the login/registration screens
  */
-abstract class AbstractLoginFragment : VectorBaseFragment(), OnBackPressed {
+abstract class AbstractLoginFragment<VB: ViewBinding> : VectorBaseFragment<VB>(), OnBackPressed {
 
     protected val loginViewModel: LoginViewModel by activityViewModel()
 
@@ -75,7 +77,7 @@ abstract class AbstractLoginFragment : VectorBaseFragment(), OnBackPressed {
         }
 
         when (throwable) {
-            is Failure.Cancelled                      ->
+            is CancellationException                  ->
                 /* Ignore this error, user has cancelled the action */
                 Unit
             is Failure.ServerError                    ->

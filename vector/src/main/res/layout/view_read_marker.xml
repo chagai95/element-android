@@ -19,39 +19,44 @@
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:adjustViewBounds="true"
+        android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/user_round_avatars" />
 
     <ImageView
         android:id="@+id/receiptAvatar4"
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:adjustViewBounds="true"
+        android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/user_round_avatars" />
 
     <ImageView
         android:id="@+id/receiptAvatar3"
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:adjustViewBounds="true"
+        android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/user_round_avatars" />
 
     <ImageView
         android:id="@+id/receiptAvatar2"
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:adjustViewBounds="true"
+        android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/user_round_avatars" />
 
     <ImageView
         android:id="@+id/receiptAvatar1"
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:adjustViewBounds="true"
+        android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/user_round_avatars" />
 
 </merge>

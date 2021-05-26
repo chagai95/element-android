@@ -24,7 +24,7 @@ import com.airbnb.mvrx.withState
 import im.vector.app.core.di.ScreenComponent
 import im.vector.app.core.ui.bottomsheet.BottomSheetGeneric
 import im.vector.app.core.ui.bottomsheet.BottomSheetGenericController
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 import org.matrix.android.sdk.api.session.room.model.RoomHistoryVisibility
 import javax.inject.Inject
 
@@ -33,7 +33,7 @@ data class RoomHistoryVisibilityBottomSheetArgs(
         val currentRoomHistoryVisibility: RoomHistoryVisibility
 ) : Parcelable
 
-class RoomHistoryVisibilityBottomSheet : BottomSheetGeneric<RoomHistoryVisibilityState, RoomHistoryVisibilityAction>() {
+class RoomHistoryVisibilityBottomSheet : BottomSheetGeneric<RoomHistoryVisibilityState, RoomHistoryVisibilityRadioAction>() {
 
     private lateinit var roomHistoryVisibilitySharedActionViewModel: RoomHistoryVisibilitySharedActionViewModel
     @Inject lateinit var controller: RoomHistoryVisibilityController
@@ -43,14 +43,14 @@ class RoomHistoryVisibilityBottomSheet : BottomSheetGeneric<RoomHistoryVisibilit
         injector.inject(this)
     }
 
-    override fun getController(): BottomSheetGenericController<RoomHistoryVisibilityState, RoomHistoryVisibilityAction> = controller
+    override fun getController(): BottomSheetGenericController<RoomHistoryVisibilityState, RoomHistoryVisibilityRadioAction> = controller
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         roomHistoryVisibilitySharedActionViewModel = activityViewModelProvider.get(RoomHistoryVisibilitySharedActionViewModel::class.java)
     }
 
-    override fun didSelectAction(action: RoomHistoryVisibilityAction) {
+    override fun didSelectAction(action: RoomHistoryVisibilityRadioAction) {
         roomHistoryVisibilitySharedActionViewModel.post(action)
         dismiss()
     }

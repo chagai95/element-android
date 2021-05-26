@@ -16,10 +16,10 @@
 
 package org.matrix.android.sdk.internal.session.room.alias
 
-import org.greenrobot.eventbus.EventBus
 import org.matrix.android.sdk.api.failure.Failure
 import org.matrix.android.sdk.api.session.room.alias.RoomAliasError
 import org.matrix.android.sdk.internal.di.UserId
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.session.directory.DirectoryAPI
 import javax.inject.Inject
@@ -27,7 +27,7 @@ import javax.inject.Inject
 internal class RoomAliasAvailabilityChecker @Inject constructor(
         @UserId private val userId: String,
         private val directoryAPI: DirectoryAPI,
-        private val eventBus: EventBus
+        private val globalErrorReceiver: GlobalErrorReceiver
 ) {
     /**
      * @param aliasLocalPart the local part of the alias.
@@ -36,13 +36,17 @@ internal class RoomAliasAvailabilityChecker @Inject constructor(
     @Throws(RoomAliasError::class)
     suspend fun check(aliasLocalPart: String?) {
         if (aliasLocalPart.isNullOrEmpty()) {
-            throw RoomAliasError.AliasEmpty
+            // don't check empty or not provided alias
+            return
+        }
+        if (aliasLocalPart.isBlank()) {
+            throw RoomAliasError.AliasIsBlank
         }
         // Check alias availability
         val fullAlias = aliasLocalPart.toFullLocalAlias(userId)
         try {
-            executeRequest<RoomAliasDescription>(eventBus) {
-                apiCall = directoryAPI.getRoomIdByAlias(fullAlias)
+            executeRequest(globalErrorReceiver) {
+                directoryAPI.getRoomIdByAlias(fullAlias)
             }
         } catch (throwable: Throwable) {
             if (throwable is Failure.ServerError && throwable.httpCode == 404) {

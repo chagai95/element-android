@@ -75,7 +75,6 @@
                     android:layout_marginTop="10dp"
                     android:layout_marginEnd="10dp"
                     android:hint="@string/send_bug_report_placeholder"
-                    android:textColorHint="?attr/vctr_default_text_hint_color"
                     app:counterEnabled="true"
                     app:counterMaxLength="500">
 
@@ -135,6 +134,15 @@
                     android:text="@string/send_bug_report_include_key_share_history" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/bug_report_button_contact_me"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginEnd="10dp"
+                    android:checked="false"
+                    android:text="@string/you_may_contact_me" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/bug_report_button_include_screenshot"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -150,6 +158,7 @@
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="10dp"
                     android:adjustViewBounds="true"
+                    android:contentDescription="@string/a11y_screenshot"
                     android:maxWidth="260dp"
                     android:scaleType="fitCenter"
                     tools:src="@tools:sample/backgrounds/scenic" />

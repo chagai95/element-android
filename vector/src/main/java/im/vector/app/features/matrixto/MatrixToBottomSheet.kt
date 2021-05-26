@@ -18,26 +18,30 @@ package im.vector.app.features.matrixto
 
 import android.os.Bundle
 import android.os.Parcelable
+import android.view.LayoutInflater
 import android.view.View
-import androidx.core.view.isInvisible
+import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
-import com.airbnb.mvrx.Fail
-import com.airbnb.mvrx.Loading
+import androidx.fragment.app.Fragment
+import com.airbnb.mvrx.Incomplete
 import com.airbnb.mvrx.MvRx
-import com.airbnb.mvrx.Success
-import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.fragmentViewModel
 import com.airbnb.mvrx.withState
 import im.vector.app.R
 import im.vector.app.core.di.ScreenComponent
-import im.vector.app.core.extensions.setTextOrHide
+import im.vector.app.core.extensions.commitTransaction
 import im.vector.app.core.platform.VectorBaseBottomSheetDialogFragment
+import im.vector.app.databinding.BottomSheetMatrixToCardBinding
 import im.vector.app.features.home.AvatarRenderer
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.bottom_sheet_matrix_to_card.*
+import kotlinx.parcelize.Parcelize
+import org.matrix.android.sdk.api.session.permalinks.PermalinkData
+import java.lang.ref.WeakReference
 import javax.inject.Inject
+import kotlin.reflect.KClass
 
-class MatrixToBottomSheet : VectorBaseBottomSheetDialogFragment() {
+class MatrixToBottomSheet :
+        VectorBaseBottomSheetDialogFragment<BottomSheetMatrixToCardBinding>() {
 
     @Parcelize
     data class MatrixToArgs(
@@ -53,71 +57,57 @@ class MatrixToBottomSheet : VectorBaseBottomSheetDialogFragment() {
         injector.inject(this)
     }
 
-    private var interactionListener: InteractionListener? = null
+    private var weakReference = WeakReference<InteractionListener>(null)
 
-    override fun getLayoutResId() = R.layout.bottom_sheet_matrix_to_card
+    var interactionListener: InteractionListener?
+        set(value) {
+            weakReference = WeakReference(value)
+        }
+        get() = weakReference.get()
+
+    override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): BottomSheetMatrixToCardBinding {
+        return BottomSheetMatrixToCardBinding.inflate(inflater, container, false)
+    }
 
     private val viewModel by fragmentViewModel(MatrixToBottomSheetViewModel::class)
 
     interface InteractionListener {
         fun navigateToRoom(roomId: String)
+        fun switchToSpace(spaceId: String) {}
     }
 
     override fun invalidate() = withState(viewModel) { state ->
         super.invalidate()
-        when (val item = state.matrixItem) {
-            Uninitialized -> {
-                matrixToCardContentLoading.isVisible = false
-                matrixToCardUserContentVisibility.isVisible = false
+        when (state.linkType) {
+            is PermalinkData.RoomLink -> {
+                views.matrixToCardContentLoading.isVisible = state.roomPeekResult is Incomplete
+                showFragment(MatrixToRoomSpaceFragment::class, Bundle())
             }
-            is Loading -> {
-                matrixToCardContentLoading.isVisible = true
-                matrixToCardUserContentVisibility.isVisible = false
+            is PermalinkData.UserLink -> {
+                views.matrixToCardContentLoading.isVisible = state.matrixItem is Incomplete
+                showFragment(MatrixToUserFragment::class, Bundle())
             }
-            is Success -> {
-                matrixToCardContentLoading.isVisible = false
-                matrixToCardUserContentVisibility.isVisible = true
-                matrixToCardNameText.setTextOrHide(item.invoke().displayName)
-                matrixToCardUserIdText.setTextOrHide(item.invoke().id)
-                avatarRenderer.render(item.invoke(), matrixToCardAvatar)
+            is PermalinkData.GroupLink -> {
             }
-            is Fail -> {
-                // TODO display some error copy?
-                dismiss()
+            is PermalinkData.FallbackLink -> {
             }
         }
+    }
 
-        when (state.startChattingState) {
-            Uninitialized -> {
-                matrixToCardButtonLoading.isVisible = false
-                matrixToCardSendMessageButton.isVisible = false
-            }
-            is Success -> {
-                matrixToCardButtonLoading.isVisible = false
-                matrixToCardSendMessageButton.isVisible = true
-            }
-            is Fail -> {
-                matrixToCardButtonLoading.isVisible = false
-                matrixToCardSendMessageButton.isVisible = true
-                // TODO display some error copy?
-                dismiss()
-            }
-            is Loading -> {
-                matrixToCardButtonLoading.isVisible = true
-                matrixToCardSendMessageButton.isInvisible = true
+    private fun showFragment(fragmentClass: KClass<out Fragment>, bundle: Bundle) {
+        if (childFragmentManager.findFragmentByTag(fragmentClass.simpleName) == null) {
+            childFragmentManager.commitTransaction {
+                replace(views.matrixToCardFragmentContainer.id,
+                        fragmentClass.java,
+                        bundle,
+                        fragmentClass.simpleName
+                )
             }
         }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        matrixToCardSendMessageButton.debouncedClicks {
-            withState(viewModel) {
-                it.matrixItem.invoke()?.let { item ->
-                    viewModel.handle(MatrixToAction.StartChattingWithUser(item))
-                }
-            }
-        }
 
         viewModel.observeViewEvents {
             when (it) {
@@ -126,6 +116,16 @@ class MatrixToBottomSheet : VectorBaseBottomSheetDialogFragment() {
                     dismiss()
                 }
                 MatrixToViewEvents.Dismiss -> dismiss()
+                is MatrixToViewEvents.NavigateToSpace -> {
+                    interactionListener?.switchToSpace(it.spaceId)
+                    dismiss()
+                }
+                is MatrixToViewEvents.ShowModalError -> {
+                    AlertDialog.Builder(requireContext())
+                            .setMessage(it.error)
+                            .setPositiveButton(getString(R.string.ok), null)
+                            .show()
+                }
             }
         }
     }
@@ -134,7 +134,7 @@ class MatrixToBottomSheet : VectorBaseBottomSheetDialogFragment() {
         fun withLink(matrixToLink: String, listener: InteractionListener?): MatrixToBottomSheet {
             return MatrixToBottomSheet().apply {
                 arguments = Bundle().apply {
-                    putParcelable(MvRx.KEY_ARG, MatrixToBottomSheet.MatrixToArgs(
+                    putParcelable(MvRx.KEY_ARG, MatrixToArgs(
                             matrixToLink = matrixToLink
                     ))
                 }

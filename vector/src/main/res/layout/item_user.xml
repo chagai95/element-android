@@ -16,9 +16,10 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginStart="8dp"
+        android:contentDescription="@string/avatar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/user_round_avatars" />
 
     <TextView
         android:id="@+id/itemUserId"
@@ -36,7 +37,7 @@
         app:layout_constraintStart_toEndOf="@+id/itemUserAvatar"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed"
-        tools:text="@sample/matrix.json/data/mxid" />
+        tools:text="@sample/users.json/data/id" />
 
     <TextView
         android:id="@+id/itemUserName"
@@ -52,7 +53,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/itemUserAvatar"
         app:layout_constraintTop_toBottomOf="@+id/itemUserId"
-        tools:text="@sample/matrix.json/data/displayName"
+        tools:text="@sample/users.json/data/displayName"
         tools:visibility="visible" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -23,15 +23,17 @@ import im.vector.app.core.di.ActiveSessionHolder
 import im.vector.app.core.di.ScreenComponent
 import im.vector.app.core.extensions.replaceFragment
 import im.vector.app.core.platform.VectorBaseActivity
+import im.vector.app.databinding.FragmentProgressBinding
 import im.vector.app.features.home.HomeActivity
 import im.vector.app.features.home.LoadingFragment
-import im.vector.app.features.login.LoginActivity
 import javax.inject.Inject
 
-class PermalinkHandlerActivity : VectorBaseActivity() {
+class PermalinkHandlerActivity : VectorBaseActivity<FragmentProgressBinding>() {
 
     @Inject lateinit var permalinkHandler: PermalinkHandler
     @Inject lateinit var sessionHolder: ActiveSessionHolder
+
+    override fun getBinding() = FragmentProgressBinding.inflate(layoutInflater)
 
     override fun injectWith(injector: ScreenComponent) {
         injector.inject(this)
@@ -68,9 +70,10 @@ class PermalinkHandlerActivity : VectorBaseActivity() {
     }
 
     private fun startLoginActivity() {
-        val intent = LoginActivity.newIntent(this, null)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
+        navigator.openLogin(
+                context = this,
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+        )
         finish()
     }
 }

@@ -24,8 +24,6 @@ import java.util.Locale
 // Implementation should return true in case of success
 typealias ActionOnFile = (file: File) -> Boolean
 
-internal fun String?.isLocalFile() = this != null && File(this).exists()
-
 /* ==========================================================================================
  * Delete
  * ========================================================================================== */
@@ -114,7 +112,7 @@ fun getFileExtension(fileUri: String): String? {
                 val ext = filename.substring(dotPos + 1)
 
                 if (ext.isNotBlank()) {
-                    return ext.toLowerCase(Locale.ROOT)
+                    return ext.lowercase(Locale.ROOT)
                 }
             }
         }
@@ -133,5 +131,5 @@ fun getSizeOfFiles(root: File): Int {
                 Timber.v("Get size of ${it.absolutePath}")
                 true
             }
-            .sumBy { it.length().toInt() }
+            .sumOf { it.length().toInt() }
 }

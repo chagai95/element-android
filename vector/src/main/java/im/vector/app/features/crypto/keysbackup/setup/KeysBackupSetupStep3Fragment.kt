@@ -18,16 +18,15 @@ package im.vector.app.features.crypto.keysbackup.setup
 import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
+import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
-import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import arrow.core.Try
-import butterknife.BindView
-import butterknife.OnClick
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import im.vector.app.R
 import im.vector.app.core.extensions.registerStartForActivityResult
@@ -36,8 +35,9 @@ import im.vector.app.core.utils.LiveEvent
 import im.vector.app.core.utils.copyToClipboard
 import im.vector.app.core.utils.selectTxtFileToWrite
 import im.vector.app.core.utils.startSharePlainTextIntent
+import im.vector.app.databinding.FragmentKeysBackupSetupStep3Binding
+
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -46,18 +46,11 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
-class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment() {
+class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment<FragmentKeysBackupSetupStep3Binding>() {
 
-    override fun getLayoutResId() = R.layout.fragment_keys_backup_setup_step3
-
-    @BindView(R.id.keys_backup_setup_step3_button)
-    lateinit var mFinishButton: Button
-
-    @BindView(R.id.keys_backup_recovery_key_text)
-    lateinit var mRecoveryKeyTextView: TextView
-
-    @BindView(R.id.keys_backup_setup_step3_line2_text)
-    lateinit var mRecoveryKeyLabel2TextView: TextView
+    override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentKeysBackupSetupStep3Binding {
+        return FragmentKeysBackupSetupStep3Binding.inflate(inflater, container, false)
+    }
 
     private lateinit var viewModel: KeysBackupSetupSharedViewModel
 
@@ -67,13 +60,13 @@ class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment() 
 
         viewModel.shouldPromptOnBack = false
 
-        viewModel.passphrase.observe(viewLifecycleOwner, Observer {
+        viewModel.passphrase.observe(viewLifecycleOwner) {
             if (it.isNullOrBlank()) {
                 // Recovery was generated, so show key and options to save
-                mRecoveryKeyLabel2TextView.text = getString(R.string.keys_backup_setup_step3_text_line2_no_passphrase)
-                mFinishButton.text = getString(R.string.keys_backup_setup_step3_button_title_no_passphrase)
+                views.keysBackupSetupStep3Label2.text = getString(R.string.keys_backup_setup_step3_text_line2_no_passphrase)
+                views.keysBackupSetupStep3FinishButton.text = getString(R.string.keys_backup_setup_step3_button_title_no_passphrase)
 
-                mRecoveryKeyTextView.text = viewModel.recoveryKey.value!!
+                views.keysBackupSetupStep3RecoveryKeyText.text = viewModel.recoveryKey.value!!
                         .replace(" ", "")
                         .chunked(16)
                         .joinToString("\n") {
@@ -81,17 +74,24 @@ class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment() 
                                     .chunked(4)
                                     .joinToString(" ")
                         }
-                mRecoveryKeyTextView.isVisible = true
+                views.keysBackupSetupStep3RecoveryKeyText.isVisible = true
             } else {
-                mRecoveryKeyLabel2TextView.text = getString(R.string.keys_backup_setup_step3_text_line2)
-                mFinishButton.text = getString(R.string.keys_backup_setup_step3_button_title)
-                mRecoveryKeyTextView.isVisible = false
+                views.keysBackupSetupStep3Label2.text = getString(R.string.keys_backup_setup_step3_text_line2)
+                views.keysBackupSetupStep3FinishButton.text = getString(R.string.keys_backup_setup_step3_button_title)
+                views.keysBackupSetupStep3RecoveryKeyText.isVisible = false
             }
-        })
+        }
+
+        setupViews()
     }
 
-    @OnClick(R.id.keys_backup_setup_step3_button)
-    fun onFinishButtonClicked() {
+    private fun setupViews() {
+        views.keysBackupSetupStep3FinishButton.setOnClickListener { onFinishButtonClicked() }
+        views.keysBackupSetupStep3CopyButton.setOnClickListener { onCopyButtonClicked() }
+        views.keysBackupSetupStep3RecoveryKeyText.setOnClickListener { onRecoveryKeyClicked() }
+    }
+
+    private fun onFinishButtonClicked() {
         if (viewModel.megolmBackupCreationInfo == null) {
             // nothing
         } else {
@@ -103,8 +103,7 @@ class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment() 
         }
     }
 
-    @OnClick(R.id.keys_backup_setup_step3_copy_button)
-    fun onCopyButtonClicked() {
+    private fun onCopyButtonClicked() {
         val dialog = BottomSheetDialog(requireActivity())
         dialog.setContentView(R.layout.bottom_sheet_save_recovery_key)
         dialog.setCanceledOnTouchOutside(true)
@@ -155,8 +154,7 @@ class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment() 
         dialog.show()
     }
 
-    @OnClick(R.id.keys_backup_recovery_key_text)
-    fun onRecoveryKeyClicked() {
+    private fun onRecoveryKeyClicked() {
         viewModel.recoveryKey.value?.let {
             viewModel.copyHasBeenMade = true
 
@@ -165,7 +163,7 @@ class KeysBackupSetupStep3Fragment @Inject constructor() : VectorBaseFragment() 
     }
 
     private fun exportRecoveryKeyToFile(uri: Uri, data: String) {
-        GlobalScope.launch(Dispatchers.Main) {
+        lifecycleScope.launch(Dispatchers.Main) {
             Try {
                 withContext(Dispatchers.IO) {
                     requireContext().contentResolver.openOutputStream(uri)

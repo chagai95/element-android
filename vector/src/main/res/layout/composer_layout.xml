@@ -33,14 +33,14 @@
         tools:ignore="MissingConstraints" />
 
     <ImageView
-        android:id="@+id/composer_related_message_avatar_view"
+        android:id="@+id/composerRelatedMessageAvatar"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        tools:ignore="MissingConstraints"
-        tools:src="@tools:sample/avatars" />
+        android:contentDescription="@string/avatar"
+        tools:ignore="MissingConstraints" />
 
     <TextView
-        android:id="@+id/composer_related_message_sender"
+        android:id="@+id/composerRelatedMessageTitle"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:textStyle="bold"
@@ -49,7 +49,7 @@
         tools:visibility="gone" />
 
     <TextView
-        android:id="@+id/composer_related_message_preview"
+        android:id="@+id/composerRelatedMessageContent"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:ellipsize="end"
@@ -60,21 +60,29 @@
         tools:visibility="gone" />
 
     <ImageView
-        android:id="@+id/composer_related_message_action_image"
+        android:id="@+id/composerRelatedMessageActionIcon"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:importantForAccessibility="no"
         app:tint="?riotx_text_primary"
         tools:ignore="MissingConstraints,MissingPrefix" />
 
+    <ImageView
+        android:id="@+id/composerRelatedMessageImage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:importantForAccessibility="no"
+        tools:ignore="MissingPrefix" />
+
     <ImageButton
-        android:id="@+id/composer_related_message_close"
+        android:id="@+id/composerRelatedMessageCloseButton"
         android:layout_width="22dp"
         android:layout_height="22dp"
         android:background="?android:attr/selectableItemBackground"
         android:contentDescription="@string/cancel"
         android:src="@drawable/ic_close_round"
-        android:tint="@color/riotx_notice"
-        tools:ignore="MissingConstraints" />
+        app:tint="@color/riotx_notice"
+        tools:ignore="MissingConstraints,MissingPrefix" />
 
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/composer_preview_barrier"
@@ -82,7 +90,7 @@
         android:layout_height="0dp"
         app:barrierDirection="bottom"
         app:barrierMargin="8dp"
-        app:constraint_referenced_ids="composer_related_message_preview,composer_related_message_action_image"
+        app:constraint_referenced_ids="composerRelatedMessageContent,composerRelatedMessageActionIcon"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
@@ -95,12 +103,11 @@
         android:src="@drawable/ic_attachment"
         tools:ignore="MissingConstraints" />
 
-    <ImageView
-        android:id="@+id/composer_shield"
+    <im.vector.app.core.ui.views.ShieldImageView
+        android:id="@+id/composerShieldImageView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        tools:ignore="MissingConstraints"
-        tools:src="@drawable/ic_shield_black" />
+        tools:ignore="MissingConstraints" />
 
     <im.vector.app.features.home.room.detail.composer.ComposerEditText
         android:id="@+id/composerEditText"
@@ -113,10 +120,11 @@
         tools:ignore="MissingConstraints" />
 
     <ImageButton
-        android:id="@+id/composer_emoji"
+        android:id="@+id/composerEmojiButton"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/a11y_open_emoji_picker"
         android:src="@drawable/ic_insert_emoji"
         tools:ignore="MissingConstraints" />
 

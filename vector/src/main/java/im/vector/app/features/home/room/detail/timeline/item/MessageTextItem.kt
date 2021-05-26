@@ -19,6 +19,7 @@ package im.vector.app.features.home.room.detail.timeline.item
 import android.text.method.MovementMethod
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.text.PrecomputedTextCompat
+import androidx.core.view.isVisible
 import androidx.core.widget.TextViewCompat
 import com.airbnb.epoxy.EpoxyAttribute
 import com.airbnb.epoxy.EpoxyModelClass
@@ -38,6 +39,9 @@ abstract class MessageTextItem : AbsMessageItem<MessageTextItem.Holder>() {
 
     @EpoxyAttribute
     var message: CharSequence? = null
+
+    @EpoxyAttribute
+    var canUseTextFuture: Boolean = true
 
     @EpoxyAttribute
     var useBigFont: Boolean = false
@@ -60,7 +64,12 @@ abstract class MessageTextItem : AbsMessageItem<MessageTextItem.Holder>() {
         // Preview URL
         previewUrlViewUpdater.previewUrlView = holder.previewUrlView
         previewUrlViewUpdater.imageContentRenderer = imageContentRenderer
-        previewUrlRetriever?.addListener(attributes.informationData.eventId, previewUrlViewUpdater)
+        val safePreviewUrlRetriever = previewUrlRetriever
+        if (safePreviewUrlRetriever == null) {
+            holder.previewUrlView.isVisible = false
+        } else {
+            safePreviewUrlRetriever.addListener(attributes.informationData.eventId, previewUrlViewUpdater)
+        }
         holder.previewUrlView.delegate = previewUrlCallback
 
         if (useBigFont) {
@@ -74,17 +83,26 @@ abstract class MessageTextItem : AbsMessageItem<MessageTextItem.Holder>() {
                 it.bind(holder.messageView)
             }
         }
-        val textFuture = PrecomputedTextCompat.getTextFuture(
-                message ?: "",
-                TextViewCompat.getTextMetricsParams(holder.messageView),
-                null)
+        val textFuture = if (canUseTextFuture) {
+            PrecomputedTextCompat.getTextFuture(
+                    message ?: "",
+                    TextViewCompat.getTextMetricsParams(holder.messageView),
+                    null)
+        } else {
+            null
+        }
         super.bind(holder)
         holder.messageView.movementMethod = movementMethod
 
         renderSendState(holder.messageView, holder.messageView)
         holder.messageView.setOnClickListener(attributes.itemClickListener)
         holder.messageView.setOnLongClickListener(attributes.itemLongClickListener)
-        holder.messageView.setTextFuture(textFuture)
+
+        if (canUseTextFuture) {
+            holder.messageView.setTextFuture(textFuture)
+        } else {
+            holder.messageView.text = message
+        }
     }
 
     override fun unbind(holder: Holder) {
@@ -106,7 +124,11 @@ abstract class MessageTextItem : AbsMessageItem<MessageTextItem.Holder>() {
         var imageContentRenderer: ImageContentRenderer? = null
 
         override fun onStateUpdated(state: PreviewUrlUiState) {
-            val safeImageContentRenderer = imageContentRenderer ?: return
+            val safeImageContentRenderer = imageContentRenderer
+            if (safeImageContentRenderer == null) {
+                previewUrlView?.isVisible = false
+                return
+            }
             previewUrlView?.render(state, safeImageContentRenderer)
         }
     }

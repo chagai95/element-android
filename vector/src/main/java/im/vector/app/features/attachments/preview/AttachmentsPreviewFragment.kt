@@ -19,8 +19,10 @@ package im.vector.app.features.attachments.preview
 
 import android.app.Activity.RESULT_CANCELED
 import android.app.Activity.RESULT_OK
+import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -28,6 +30,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -45,9 +48,9 @@ import im.vector.app.core.resources.ColorProvider
 import im.vector.app.core.utils.OnSnapPositionChangeListener
 import im.vector.app.core.utils.SnapOnScrollListener
 import im.vector.app.core.utils.attachSnapHelperWithListener
+import im.vector.app.databinding.FragmentAttachmentsPreviewBinding
 import im.vector.app.features.media.createUCropWithDefaultSettings
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.fragment_attachments_preview.*
+import kotlinx.parcelize.Parcelize
 import org.matrix.android.sdk.api.extensions.orFalse
 import org.matrix.android.sdk.api.session.content.ContentAttachmentData
 import java.io.File
@@ -62,19 +65,21 @@ class AttachmentsPreviewFragment @Inject constructor(
         private val attachmentMiniaturePreviewController: AttachmentMiniaturePreviewController,
         private val attachmentBigPreviewController: AttachmentBigPreviewController,
         private val colorProvider: ColorProvider
-) : VectorBaseFragment(), AttachmentMiniaturePreviewController.Callback {
+) : VectorBaseFragment<FragmentAttachmentsPreviewBinding>(), AttachmentMiniaturePreviewController.Callback {
 
     private val fragmentArgs: AttachmentsPreviewArgs by args()
     private val viewModel: AttachmentsPreviewViewModel by fragmentViewModel()
 
-    override fun getLayoutResId() = R.layout.fragment_attachments_preview
+    override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentAttachmentsPreviewBinding {
+        return FragmentAttachmentsPreviewBinding.inflate(inflater, container, false)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         applyInsets()
         setupRecyclerViews()
-        setupToolbar(attachmentPreviewerToolbar)
-        attachmentPreviewerSendButton.setOnClickListener {
+        setupToolbar(views.attachmentPreviewerToolbar)
+        views.attachmentPreviewerSendButton.setOnClickListener {
             setResultAndFinish()
         }
     }
@@ -119,10 +124,10 @@ class AttachmentsPreviewFragment @Inject constructor(
     override fun getMenuRes() = R.menu.vector_attachments_preview
 
     override fun onDestroyView() {
-        super.onDestroyView()
-        attachmentPreviewerMiniatureList.cleanup()
-        attachmentPreviewerBigList.cleanup()
+        views.attachmentPreviewerMiniatureList.cleanup()
+        views.attachmentPreviewerBigList.cleanup()
         attachmentMiniaturePreviewController.callback = null
+        super.onDestroyView()
     }
 
     override fun invalidate() = withState(viewModel) { state ->
@@ -133,9 +138,19 @@ class AttachmentsPreviewFragment @Inject constructor(
         } else {
             attachmentMiniaturePreviewController.setData(state)
             attachmentBigPreviewController.setData(state)
-            attachmentPreviewerBigList.scrollToPosition(state.currentAttachmentIndex)
-            attachmentPreviewerMiniatureList.scrollToPosition(state.currentAttachmentIndex)
-            attachmentPreviewerSendImageOriginalSize.text = resources.getQuantityString(R.plurals.send_images_with_original_size, state.attachments.size)
+            views.attachmentPreviewerBigList.scrollToPosition(state.currentAttachmentIndex)
+            views.attachmentPreviewerMiniatureList.scrollToPosition(state.currentAttachmentIndex)
+            views.attachmentPreviewerSendImageOriginalSize.text = getCheckboxText(state)
+        }
+    }
+
+    private fun getCheckboxText(state: AttachmentsPreviewViewState): CharSequence {
+        val nbImages = state.attachments.count { it.type == ContentAttachmentData.Type.IMAGE }
+        val nbVideos = state.attachments.count { it.type == ContentAttachmentData.Type.VIDEO }
+        return when {
+            nbVideos == 0 -> resources.getQuantityString(R.plurals.send_images_with_original_size, nbImages)
+            nbImages == 0 -> resources.getQuantityString(R.plurals.send_videos_with_original_size, nbVideos)
+            else          -> getString(R.string.send_images_and_video_with_original_size)
         }
     }
 
@@ -146,19 +161,26 @@ class AttachmentsPreviewFragment @Inject constructor(
     private fun setResultAndFinish() = withState(viewModel) {
         (requireActivity() as? AttachmentsPreviewActivity)?.setResultAndFinish(
                 it.attachments,
-                attachmentPreviewerSendImageOriginalSize.isChecked
+                views.attachmentPreviewerSendImageOriginalSize.isChecked
         )
     }
 
+    @Suppress("DEPRECATION")
     private fun applyInsets() {
-        view?.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-        ViewCompat.setOnApplyWindowInsetsListener(attachmentPreviewerBottomContainer) { v, insets ->
-            v.updatePadding(bottom = insets.systemWindowInsetBottom)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            activity?.window?.setDecorFitsSystemWindows(false)
+        } else {
+            view?.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(views.attachmentPreviewerBottomContainer) { v, insets ->
+            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(bottom = systemBarsInsets.bottom)
             insets
         }
-        ViewCompat.setOnApplyWindowInsetsListener(attachmentPreviewerToolbar) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(views.attachmentPreviewerToolbar) { v, insets ->
+            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = insets.systemWindowInsetTop
+                topMargin = systemBarsInsets.top
             }
             insets
         }
@@ -180,13 +202,13 @@ class AttachmentsPreviewFragment @Inject constructor(
     private fun setupRecyclerViews() {
         attachmentMiniaturePreviewController.callback = this
 
-        attachmentPreviewerMiniatureList.let {
+        views.attachmentPreviewerMiniatureList.let {
             it.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             it.setHasFixedSize(true)
             it.adapter = attachmentMiniaturePreviewController.adapter
         }
 
-        attachmentPreviewerBigList.let {
+        views.attachmentPreviewerBigList.let {
             it.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             it.attachSnapHelperWithListener(
                     PagerSnapHelper(),

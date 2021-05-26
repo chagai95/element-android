@@ -16,8 +16,8 @@
 
 package org.matrix.android.sdk.internal.session.room.directory
 
-import org.greenrobot.eventbus.EventBus
 import org.matrix.android.sdk.api.session.room.model.RoomDirectoryVisibility
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.session.directory.DirectoryAPI
 import org.matrix.android.sdk.internal.session.directory.RoomDirectoryVisibilityJson
@@ -33,12 +33,12 @@ internal interface SetRoomDirectoryVisibilityTask : Task<SetRoomDirectoryVisibil
 
 internal class DefaultSetRoomDirectoryVisibilityTask @Inject constructor(
         private val directoryAPI: DirectoryAPI,
-        private val eventBus: EventBus
+        private val globalErrorReceiver: GlobalErrorReceiver
 ) : SetRoomDirectoryVisibilityTask {
 
     override suspend fun execute(params: SetRoomDirectoryVisibilityTask.Params) {
-        executeRequest<Unit>(eventBus) {
-            apiCall = directoryAPI.setRoomDirectoryVisibility(
+        executeRequest(globalErrorReceiver) {
+            directoryAPI.setRoomDirectoryVisibility(
                     params.roomId,
                     RoomDirectoryVisibilityJson(visibility = params.roomDirectoryVisibility)
             )

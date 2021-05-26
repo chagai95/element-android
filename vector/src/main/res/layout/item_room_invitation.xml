@@ -16,9 +16,10 @@
         android:layout_height="56dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="12dp"
+        android:contentDescription="@string/avatar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@sample/room_round_avatars" />
 
     <!-- Margin bottom does not work, so I use space -->
     <Space
@@ -42,14 +43,14 @@
         android:maxLines="1"
         android:textColor="?riotx_text_primary"
         android:textSize="15sp"
+        app:drawableEndCompat="@drawable/ic_arrow_right"
         app:layout_constrainedWidth="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toEndOf="@id/roomInvitationAvatarImageView"
         app:layout_constraintTop_toTopOf="parent"
-        tools:text="@sample/matrix.json/data/displayName"
-        app:drawableEndCompat="@drawable/ic_arrow_right" />
+        tools:text="@sample/rooms.json/data/name" />
 
     <TextView
         android:id="@+id/roomInvitationSubTitle"
@@ -63,7 +64,7 @@
         app:layout_constraintEnd_toEndOf="@+id/roomInvitationNameView"
         app:layout_constraintStart_toStartOf="@+id/roomInvitationNameView"
         app:layout_constraintTop_toBottomOf="@+id/roomInvitationNameView"
-        tools:text="@sample/matrix.json/data/message" />
+        tools:text="@sample/rooms.json/data/topic" />
 
     <!-- Margin bottom does not work, so I use space -->
     <Space

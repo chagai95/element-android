@@ -5,6 +5,7 @@
     android:id="@+id/item_generic_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
     android:minHeight="50dp">
 
     <ImageView
@@ -12,6 +13,7 @@
         android:layout_width="20dp"
         android:layout_height="20dp"
         android:layout_marginStart="16dp"
+        android:importantForAccessibility="no"
         android:scaleType="centerInside"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/item_generic_title_text"
@@ -56,7 +58,8 @@
         app:layout_constraintEnd_toStartOf="@+id/item_generic_barrier"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/item_generic_title_text"
-        tools:text="At totam delectus et aliquid dolorem. Consectetur voluptas tempore et non blanditiis id optio. Dolorum impedit quidem minus nihil. "
+        tools:maxLines="3"
+        tools:text="@tools:sample/lorem/random"
         tools:visibility="visible" />
 
     <androidx.constraintlayout.widget.Barrier
@@ -72,6 +75,7 @@
         android:layout_width="20dp"
         android:layout_height="20dp"
         android:layout_margin="16dp"
+        android:importantForAccessibility="no"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/item_generic_description_text"
         app:layout_constraintEnd_toEndOf="parent"

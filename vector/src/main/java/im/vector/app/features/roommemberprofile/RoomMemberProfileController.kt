@@ -80,8 +80,6 @@ class RoomMemberProfileController @Inject constructor(
                 action = { callback?.onIgnoreClicked() }
         )
         if (!state.isMine) {
-            buildProfileSection(stringProvider.getString(R.string.room_profile_section_more))
-
             buildProfileAction(
                     id = "direct",
                     editable = false,
@@ -101,6 +99,7 @@ class RoomMemberProfileController @Inject constructor(
     private fun buildSecuritySection(state: RoomMemberProfileViewState) {
         // Security
         buildProfileSection(stringProvider.getString(R.string.room_profile_section_security))
+        val host = this
 
         if (state.isRoomEncrypted) {
             if (state.userMXCrossSigningInfo != null) {
@@ -154,7 +153,7 @@ class RoomMemberProfileController @Inject constructor(
 
                     genericFooterItem {
                         id("verify_footer")
-                        text(stringProvider.getString(R.string.room_profile_encrypted_subtitle))
+                        text(host.stringProvider.getString(R.string.room_profile_encrypted_subtitle))
                         centered(false)
                     }
                 }
@@ -172,7 +171,7 @@ class RoomMemberProfileController @Inject constructor(
         } else {
             genericFooterItem {
                 id("verify_footer_not_encrypted")
-                text(stringProvider.getString(R.string.room_profile_not_encrypted_subtitle))
+                text(host.stringProvider.getString(R.string.room_profile_not_encrypted_subtitle))
                 centered(false)
             }
         }

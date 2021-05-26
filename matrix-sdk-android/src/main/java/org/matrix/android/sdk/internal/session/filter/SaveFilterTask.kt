@@ -18,9 +18,9 @@ package org.matrix.android.sdk.internal.session.filter
 
 import org.matrix.android.sdk.api.session.sync.FilterService
 import org.matrix.android.sdk.internal.di.UserId
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.task.Task
-import org.greenrobot.eventbus.EventBus
 import javax.inject.Inject
 
 /**
@@ -37,31 +37,31 @@ internal class DefaultSaveFilterTask @Inject constructor(
         @UserId private val userId: String,
         private val filterAPI: FilterApi,
         private val filterRepository: FilterRepository,
-        private val eventBus: EventBus
+        private val globalErrorReceiver: GlobalErrorReceiver
 ) : SaveFilterTask {
 
     override suspend fun execute(params: SaveFilterTask.Params) {
         val filterBody = when (params.filterPreset) {
-            FilterService.FilterPreset.RiotFilter -> {
-                FilterFactory.createRiotFilter()
+            FilterService.FilterPreset.ElementFilter -> {
+                FilterFactory.createElementFilter()
             }
-            FilterService.FilterPreset.NoFilter   -> {
+            FilterService.FilterPreset.NoFilter      -> {
                 FilterFactory.createDefaultFilter()
             }
         }
         val roomFilter = when (params.filterPreset) {
-            FilterService.FilterPreset.RiotFilter -> {
-                FilterFactory.createRiotRoomFilter()
+            FilterService.FilterPreset.ElementFilter -> {
+                FilterFactory.createElementRoomFilter()
             }
-            FilterService.FilterPreset.NoFilter   -> {
+            FilterService.FilterPreset.NoFilter      -> {
                 FilterFactory.createDefaultRoomFilter()
             }
         }
         val updated = filterRepository.storeFilter(filterBody, roomFilter)
         if (updated) {
-            val filterResponse = executeRequest<FilterResponse>(eventBus) {
+            val filterResponse = executeRequest(globalErrorReceiver) {
                 // TODO auto retry
-                apiCall = filterAPI.uploadFilter(userId, filterBody)
+                filterAPI.uploadFilter(userId, filterBody)
             }
             filterRepository.storeFilterId(filterBody, filterResponse.filterId)
         }

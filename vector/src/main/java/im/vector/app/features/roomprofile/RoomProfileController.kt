@@ -26,6 +26,8 @@ import im.vector.app.core.resources.ColorProvider
 import im.vector.app.core.resources.StringProvider
 import im.vector.app.core.ui.list.genericFooterItem
 import im.vector.app.features.home.ShortcutCreator
+import im.vector.app.features.home.room.detail.timeline.TimelineEventController
+import im.vector.app.features.home.room.detail.timeline.tools.createLinkMovementMethod
 import im.vector.app.features.settings.VectorPreferences
 import org.matrix.android.sdk.api.crypto.RoomEncryptionTrustLevel
 import org.matrix.android.sdk.api.session.room.model.RoomSummary
@@ -52,13 +54,16 @@ class RoomProfileController @Inject constructor(
         fun createShortcut()
         fun onSettingsClicked()
         fun onLeaveRoomClicked()
+        fun onRoomAliasesClicked()
+        fun onRoomPermissionsClicked()
         fun onRoomIdClicked()
+        fun onRoomDevToolsClicked()
+        fun onUrlInTopicLongClicked(url: String)
     }
 
     override fun buildModels(data: RoomProfileViewState?) {
-        if (data == null) {
-            return
-        }
+        data ?: return
+        val host = this
         val roomSummary = data.roomSummary() ?: return
 
         // Topic
@@ -71,6 +76,16 @@ class RoomProfileController @Inject constructor(
                         id("topic")
                         content(it)
                         maxLines(2)
+                        movementMethod(createLinkMovementMethod(object : TimelineEventController.UrlClickCallback {
+                            override fun onUrlClicked(url: String, title: String): Boolean {
+                                return false
+                            }
+
+                            override fun onUrlLongClicked(url: String): Boolean {
+                                host.callback?.onUrlInTopicLongClicked(url)
+                                return true
+                            }
+                        }))
                     }
                 }
 
@@ -84,7 +99,7 @@ class RoomProfileController @Inject constructor(
         genericFooterItem {
             id("e2e info")
             centered(false)
-            text(stringProvider.getString(learnMoreSubtitle))
+            text(host.stringProvider.getString(learnMoreSubtitle))
         }
         buildEncryptionAction(data.actionPermissions, roomSummary)
 
@@ -161,16 +176,55 @@ class RoomProfileController @Inject constructor(
         )
 
         // Advanced
+        buildProfileSection(stringProvider.getString(R.string.room_settings_category_advanced_title))
+
+        buildProfileAction(
+                id = "alias",
+                title = stringProvider.getString(R.string.room_settings_alias_title),
+                subtitle = stringProvider.getString(R.string.room_settings_alias_subtitle),
+                dividerColor = dividerColor,
+                divider = true,
+                editable = true,
+                action = { callback?.onRoomAliasesClicked() }
+        )
+
+        buildProfileAction(
+                id = "permissions",
+                title = stringProvider.getString(R.string.room_settings_permissions_title),
+                subtitle = stringProvider.getString(R.string.room_settings_permissions_subtitle),
+                dividerColor = dividerColor,
+                divider = false,
+                editable = true,
+                action = { callback?.onRoomPermissionsClicked() }
+        )
+
         if (vectorPreferences.developerMode()) {
-            buildProfileSection(stringProvider.getString(R.string.room_settings_category_advanced_title))
             buildProfileAction(
                     id = "roomId",
                     title = stringProvider.getString(R.string.room_settings_room_internal_id),
                     subtitle = roomSummary.roomId,
                     dividerColor = dividerColor,
-                    divider = false,
+                    divider = true,
                     editable = false,
                     action = { callback?.onRoomIdClicked() }
+            )
+            data.roomCreateContent()?.roomVersion?.let {
+                buildProfileAction(
+                        id = "roomVersion",
+                        title = stringProvider.getString(R.string.room_settings_room_version_title),
+                        subtitle = it,
+                        dividerColor = dividerColor,
+                        divider = true,
+                        editable = false
+                )
+            }
+            buildProfileAction(
+                    id = "devTools",
+                    title = stringProvider.getString(R.string.dev_tools_menu_name),
+                    dividerColor = dividerColor,
+                    divider = false,
+                    editable = true,
+                    action = { callback?.onRoomDevToolsClicked() }
             )
         }
     }

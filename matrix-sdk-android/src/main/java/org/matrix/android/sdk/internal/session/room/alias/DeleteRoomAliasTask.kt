@@ -16,7 +16,7 @@
 
 package org.matrix.android.sdk.internal.session.room.alias
 
-import org.greenrobot.eventbus.EventBus
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.session.directory.DirectoryAPI
 import org.matrix.android.sdk.internal.task.Task
@@ -30,12 +30,12 @@ internal interface DeleteRoomAliasTask : Task<DeleteRoomAliasTask.Params, Unit> 
 
 internal class DefaultDeleteRoomAliasTask @Inject constructor(
         private val directoryAPI: DirectoryAPI,
-        private val eventBus: EventBus
+        private val globalErrorReceiver: GlobalErrorReceiver
 ) : DeleteRoomAliasTask {
 
     override suspend fun execute(params: DeleteRoomAliasTask.Params) {
-        executeRequest<Unit>(eventBus) {
-            apiCall = directoryAPI.deleteRoomAlias(
+        executeRequest(globalErrorReceiver) {
+            directoryAPI.deleteRoomAlias(
                     roomAlias = params.roomAlias
             )
         }

@@ -27,6 +27,7 @@
                     android:id="@+id/showUserCodeClose"
                     android:layout_width="@dimen/layout_touch_size"
                     android:layout_height="@dimen/layout_touch_size"
+                    android:contentDescription="@string/action_close"
                     android:scaleType="center"
                     android:src="@drawable/ic_x_18dp"
                     app:layout_constraintBottom_toBottomOf="parent"
@@ -61,13 +62,14 @@
             android:layout_width="60dp"
             android:layout_height="60dp"
             android:layout_marginStart="@dimen/layout_horizontal_margin"
+            android:contentDescription="@string/avatar"
             android:elevation="4dp"
             android:transitionName="profile"
             app:layout_constraintBottom_toBottomOf="@id/showUserCodeCardTopBarrier"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/showUserCodeCardTopBarrier"
-            tools:src="@tools:sample/avatars" />
+            tools:src="@sample/user_round_avatars" />
 
         <androidx.constraintlayout.widget.Barrier
             android:id="@+id/showUserCodeCardTopBarrier"
@@ -107,7 +109,7 @@
                     android:textColor="?riotx_text_primary"
                     android:textSize="15sp"
                     app:layout_constraintTop_toTopOf="parent"
-                    tools:text="@sample/matrix.json/data/displayName" />
+                    tools:text="@sample/users.json/data/displayName" />
 
                 <TextView
                     android:id="@+id/showUserCodeCardUserIdText"
@@ -122,7 +124,7 @@
                     android:textColor="?riotx_text_secondary"
                     android:textSize="15sp"
                     app:layout_constraintTop_toBottomOf="@id/showUserCodeCardNameText"
-                    tools:text="@sample/matrix.json/data/mxid" />
+                    tools:text="@sample/users.json/data/id" />
 
 
                 <!--                android:id="@+id/itemShareQrCodeImage"-->

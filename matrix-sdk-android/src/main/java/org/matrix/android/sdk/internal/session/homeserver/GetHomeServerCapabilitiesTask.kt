@@ -17,7 +17,6 @@
 package org.matrix.android.sdk.internal.session.homeserver
 
 import com.zhuinden.monarchy.Monarchy
-import org.greenrobot.eventbus.EventBus
 import org.matrix.android.sdk.api.auth.data.HomeServerConnectionConfig
 import org.matrix.android.sdk.api.auth.wellknown.WellknownResult
 import org.matrix.android.sdk.api.session.homeserver.HomeServerCapabilities
@@ -27,6 +26,7 @@ import org.matrix.android.sdk.internal.database.model.HomeServerCapabilitiesEnti
 import org.matrix.android.sdk.internal.database.query.getOrCreate
 import org.matrix.android.sdk.internal.di.SessionDatabase
 import org.matrix.android.sdk.internal.di.UserId
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.session.integrationmanager.IntegrationManagerConfigExtractor
 import org.matrix.android.sdk.internal.session.media.GetMediaConfigResult
@@ -38,13 +38,17 @@ import timber.log.Timber
 import java.util.Date
 import javax.inject.Inject
 
-internal interface GetHomeServerCapabilitiesTask : Task<Unit, Unit>
+internal interface GetHomeServerCapabilitiesTask : Task<GetHomeServerCapabilitiesTask.Params, Unit> {
+    data class Params(
+            val forceRefresh: Boolean
+    )
+}
 
 internal class DefaultGetHomeServerCapabilitiesTask @Inject constructor(
         private val capabilitiesAPI: CapabilitiesAPI,
         private val mediaAPI: MediaAPI,
         @SessionDatabase private val monarchy: Monarchy,
-        private val eventBus: EventBus,
+        private val globalErrorReceiver: GlobalErrorReceiver,
         private val getWellknownTask: GetWellknownTask,
         private val configExtractor: IntegrationManagerConfigExtractor,
         private val homeServerConnectionConfig: HomeServerConnectionConfig,
@@ -52,12 +56,14 @@ internal class DefaultGetHomeServerCapabilitiesTask @Inject constructor(
         private val userId: String
 ) : GetHomeServerCapabilitiesTask {
 
-    override suspend fun execute(params: Unit) {
-        var doRequest = false
-        monarchy.awaitTransaction { realm ->
-            val homeServerCapabilitiesEntity = HomeServerCapabilitiesEntity.getOrCreate(realm)
+    override suspend fun execute(params: GetHomeServerCapabilitiesTask.Params) {
+        var doRequest = params.forceRefresh
+        if (!doRequest) {
+            monarchy.awaitTransaction { realm ->
+                val homeServerCapabilitiesEntity = HomeServerCapabilitiesEntity.getOrCreate(realm)
 
-            doRequest = homeServerCapabilitiesEntity.lastUpdatedTimestamp + MIN_DELAY_BETWEEN_TWO_REQUEST_MILLIS < Date().time
+                doRequest = homeServerCapabilitiesEntity.lastUpdatedTimestamp + MIN_DELAY_BETWEEN_TWO_REQUEST_MILLIS < Date().time
+            }
         }
 
         if (!doRequest) {
@@ -65,20 +71,20 @@ internal class DefaultGetHomeServerCapabilitiesTask @Inject constructor(
         }
 
         val capabilities = runCatching {
-            executeRequest<GetCapabilitiesResult>(eventBus) {
-                apiCall = capabilitiesAPI.getCapabilities()
+            executeRequest(globalErrorReceiver) {
+                capabilitiesAPI.getCapabilities()
             }
         }.getOrNull()
 
         val mediaConfig = runCatching {
-            executeRequest<GetMediaConfigResult>(eventBus) {
-                apiCall = mediaAPI.getMediaConfig()
+            executeRequest(globalErrorReceiver) {
+                mediaAPI.getMediaConfig()
             }
         }.getOrNull()
 
         val versions = runCatching {
-            executeRequest<Versions>(null) {
-                apiCall = capabilitiesAPI.getVersions()
+            executeRequest(null) {
+                capabilitiesAPI.getVersions()
             }
         }.getOrNull()
 
@@ -123,7 +129,7 @@ internal class DefaultGetHomeServerCapabilitiesTask @Inject constructor(
     }
 
     companion object {
-        // 8 hours like on Riot Web
+        // 8 hours like on Element Web
         private const val MIN_DELAY_BETWEEN_TWO_REQUEST_MILLIS = 8 * 60 * 60 * 1000
     }
 }

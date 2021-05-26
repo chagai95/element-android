@@ -16,7 +16,6 @@
 
 package im.vector.app.features.home.room.breadcrumbs
 
-import android.view.View
 import com.airbnb.epoxy.EpoxyController
 import im.vector.app.core.epoxy.zeroItem
 import im.vector.app.core.utils.DebouncedClickListener
@@ -45,7 +44,7 @@ class BreadcrumbsController @Inject constructor(
 
     override fun buildModels() {
         val safeViewState = viewState ?: return
-
+        val host = this
         // Add a ZeroItem to avoid automatic scroll when the breadcrumbs are updated from another client
         zeroItem {
             id("top")
@@ -58,15 +57,15 @@ class BreadcrumbsController @Inject constructor(
                     breadcrumbsItem {
                         id(it.roomId)
                         hasTypingUsers(it.typingUsers.isNotEmpty())
-                        avatarRenderer(avatarRenderer)
+                        avatarRenderer(host.avatarRenderer)
                         matrixItem(it.toMatrixItem())
                         unreadNotificationCount(it.notificationCount)
                         showHighlighted(it.highlightCount > 0)
                         hasUnreadMessage(it.hasUnreadMessages)
                         hasDraft(it.userDrafts.isNotEmpty())
                         itemClickListener(
-                                DebouncedClickListener(View.OnClickListener { _ ->
-                                    listener?.onBreadcrumbClicked(it.roomId)
+                                DebouncedClickListener({ _ ->
+                                    host.listener?.onBreadcrumbClicked(it.roomId)
                                 })
                         )
                     }

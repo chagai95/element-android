@@ -21,8 +21,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Transformations
-import org.matrix.android.sdk.api.MatrixCallback
 import org.matrix.android.sdk.api.query.QueryStringValue
+import org.matrix.android.sdk.api.session.Session
 import org.matrix.android.sdk.api.session.accountdata.UserAccountDataEvent
 import org.matrix.android.sdk.api.session.accountdata.UserAccountDataTypes
 import org.matrix.android.sdk.api.session.events.model.Content
@@ -34,17 +34,14 @@ import org.matrix.android.sdk.api.session.room.model.PowerLevelsContent
 import org.matrix.android.sdk.api.session.room.powerlevels.PowerLevelsHelper
 import org.matrix.android.sdk.api.session.widgets.WidgetManagementFailure
 import org.matrix.android.sdk.api.session.widgets.model.Widget
-import org.matrix.android.sdk.api.util.Cancelable
 import org.matrix.android.sdk.internal.di.UserId
-import org.matrix.android.sdk.internal.session.SessionLifecycleObserver
+import org.matrix.android.sdk.api.session.SessionLifecycleObserver
 import org.matrix.android.sdk.internal.session.SessionScope
 import org.matrix.android.sdk.internal.session.integrationmanager.IntegrationManager
 import org.matrix.android.sdk.internal.session.room.state.StateEventDataSource
 import org.matrix.android.sdk.internal.session.user.accountdata.AccountDataDataSource
 import org.matrix.android.sdk.internal.session.widgets.helper.WidgetFactory
 import org.matrix.android.sdk.internal.session.widgets.helper.extractWidgetSequence
-import org.matrix.android.sdk.internal.task.TaskExecutor
-import org.matrix.android.sdk.internal.task.launchToCallback
 import java.util.HashMap
 import javax.inject.Inject
 
@@ -52,7 +49,6 @@ import javax.inject.Inject
 internal class WidgetManager @Inject constructor(private val integrationManager: IntegrationManager,
                                                  private val accountDataDataSource: AccountDataDataSource,
                                                  private val stateEventDataSource: StateEventDataSource,
-                                                 private val taskExecutor: TaskExecutor,
                                                  private val createWidgetTask: CreateWidgetTask,
                                                  private val widgetFactory: WidgetFactory,
                                                  @UserId private val userId: String)
@@ -62,12 +58,12 @@ internal class WidgetManager @Inject constructor(private val integrationManager:
     private val lifecycleOwner: LifecycleOwner = LifecycleOwner { lifecycleRegistry }
     private val lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(lifecycleOwner)
 
-    override fun onStart() {
+    override fun onSessionStarted(session: Session) {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         integrationManager.addListener(this)
     }
 
-    override fun onStop() {
+    override fun onSessionStopped(session: Session) {
         integrationManager.removeListener(this)
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
     }
@@ -102,6 +98,10 @@ internal class WidgetManager @Inject constructor(private val integrationManager:
                 stateKey = widgetId
         )
         return widgetEvents.mapEventsToWidgets(widgetTypes, excludedTypes)
+    }
+
+    fun getWidgetComputedUrl(widget: Widget, isLightTheme: Boolean): String? {
+        return widgetFactory.computeURL(widget, isLightTheme)
     }
 
     private fun List<Event>.mapEventsToWidgets(widgetTypes: Set<String>? = null,
@@ -161,37 +161,33 @@ internal class WidgetManager @Inject constructor(private val integrationManager:
                 .toList()
     }
 
-    fun createRoomWidget(roomId: String, widgetId: String, content: Content, callback: MatrixCallback<Widget>): Cancelable {
-        return taskExecutor.executorScope.launchToCallback(callback = callback) {
-            if (!hasPermissionsToHandleWidgets(roomId)) {
-                throw WidgetManagementFailure.NotEnoughPower
-            }
-            val params = CreateWidgetTask.Params(
-                    roomId = roomId,
-                    widgetId = widgetId,
-                    content = content
-            )
-            createWidgetTask.execute(params)
-            try {
-                getRoomWidgets(roomId, widgetId = QueryStringValue.Equals(widgetId, QueryStringValue.Case.INSENSITIVE)).first()
-            } catch (failure: Throwable) {
-                throw WidgetManagementFailure.CreationFailed
-            }
+    suspend fun createRoomWidget(roomId: String, widgetId: String, content: Content): Widget {
+        if (!hasPermissionsToHandleWidgets(roomId)) {
+            throw WidgetManagementFailure.NotEnoughPower
+        }
+        val params = CreateWidgetTask.Params(
+                roomId = roomId,
+                widgetId = widgetId,
+                content = content
+        )
+        createWidgetTask.execute(params)
+        try {
+            return getRoomWidgets(roomId, widgetId = QueryStringValue.Equals(widgetId, QueryStringValue.Case.INSENSITIVE)).first()
+        } catch (failure: Throwable) {
+            throw WidgetManagementFailure.CreationFailed
         }
     }
 
-    fun destroyRoomWidget(roomId: String, widgetId: String, callback: MatrixCallback<Unit>): Cancelable {
-        return taskExecutor.executorScope.launchToCallback(callback = callback) {
-            if (!hasPermissionsToHandleWidgets(roomId)) {
-                throw WidgetManagementFailure.NotEnoughPower
-            }
-            val params = CreateWidgetTask.Params(
-                    roomId = roomId,
-                    widgetId = widgetId,
-                    content = emptyMap()
-            )
-            createWidgetTask.execute(params)
+    suspend fun destroyRoomWidget(roomId: String, widgetId: String) {
+        if (!hasPermissionsToHandleWidgets(roomId)) {
+            throw WidgetManagementFailure.NotEnoughPower
         }
+        val params = CreateWidgetTask.Params(
+                roomId = roomId,
+                widgetId = widgetId,
+                content = emptyMap()
+        )
+        createWidgetTask.execute(params)
     }
 
     fun hasPermissionsToHandleWidgets(roomId: String): Boolean {

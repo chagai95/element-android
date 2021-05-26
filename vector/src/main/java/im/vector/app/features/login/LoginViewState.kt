@@ -22,9 +22,6 @@ import com.airbnb.mvrx.MvRxState
 import com.airbnb.mvrx.PersistState
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
-import im.vector.app.core.extensions.appendParamToUrl
-import org.matrix.android.sdk.api.auth.SSO_REDIRECT_PATH
-import org.matrix.android.sdk.api.auth.SSO_REDIRECT_URL_PARAM
 
 data class LoginViewState(
         val asyncLoginAction: Async<Unit> = Uninitialized,
@@ -67,26 +64,5 @@ data class LoginViewState(
 
     fun isUserLogged(): Boolean {
         return asyncLoginAction is Success
-    }
-
-    fun getSsoUrl(providerId: String?): String {
-        return buildString {
-            append(homeServerUrl?.trim { it == '/' })
-            append(SSO_REDIRECT_PATH)
-            if (providerId != null) {
-                append("/$providerId")
-            }
-            // Set a redirect url we will intercept later
-            appendParamToUrl(SSO_REDIRECT_URL_PARAM, VECTOR_REDIRECT_URL)
-            deviceId?.takeIf { it.isNotBlank() }?.let {
-                // But https://github.com/matrix-org/synapse/issues/5755
-                appendParamToUrl("device_id", it)
-            }
-        }
-    }
-
-    companion object {
-        // Note that the domain can be displayed to the user for confirmation that he trusts it. So use a human readable string
-        private const val VECTOR_REDIRECT_URL = "element://element"
     }
 }

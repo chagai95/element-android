@@ -18,9 +18,11 @@ package im.vector.app.features.roomprofile.settings
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import com.airbnb.mvrx.args
@@ -36,16 +38,15 @@ import im.vector.app.core.platform.OnBackPressed
 import im.vector.app.core.platform.VectorBaseFragment
 import im.vector.app.core.resources.ColorProvider
 import im.vector.app.core.utils.toast
+import im.vector.app.databinding.FragmentRoomSettingGenericBinding
 import im.vector.app.features.home.AvatarRenderer
 import im.vector.app.features.roomprofile.RoomProfileArgs
-import im.vector.app.features.roomprofile.RoomProfileSharedAction
 import im.vector.app.features.roomprofile.RoomProfileSharedActionViewModel
-import im.vector.app.features.roomprofile.settings.historyvisibility.RoomHistoryVisibilitySharedActionViewModel
 import im.vector.app.features.roomprofile.settings.historyvisibility.RoomHistoryVisibilityBottomSheet
+import im.vector.app.features.roomprofile.settings.historyvisibility.RoomHistoryVisibilitySharedActionViewModel
 import im.vector.app.features.roomprofile.settings.joinrule.RoomJoinRuleBottomSheet
 import im.vector.app.features.roomprofile.settings.joinrule.RoomJoinRuleSharedActionViewModel
-import kotlinx.android.synthetic.main.fragment_room_setting_generic.*
-import kotlinx.android.synthetic.main.merge_overlay_waiting_view.*
+import org.matrix.android.sdk.api.session.room.model.GuestAccess
 import org.matrix.android.sdk.api.util.toMatrixItem
 import java.util.UUID
 import javax.inject.Inject
@@ -56,10 +57,11 @@ class RoomSettingsFragment @Inject constructor(
         colorProvider: ColorProvider,
         private val avatarRenderer: AvatarRenderer
 ) :
-        VectorBaseFragment(),
+        VectorBaseFragment<FragmentRoomSettingGenericBinding>(),
         RoomSettingsController.Callback,
         OnBackPressed,
-        GalleryOrCameraDialogHelper.Listener {
+        GalleryOrCameraDialogHelper.Listener,
+        RoomSettingsViewModel.Factory {
 
     private val viewModel: RoomSettingsViewModel by fragmentViewModel()
     private lateinit var roomProfileSharedActionViewModel: RoomProfileSharedActionViewModel
@@ -69,9 +71,15 @@ class RoomSettingsFragment @Inject constructor(
     private val roomProfileArgs: RoomProfileArgs by args()
     private val galleryOrCameraDialogHelper = GalleryOrCameraDialogHelper(this, colorProvider)
 
-    override fun getLayoutResId() = R.layout.fragment_room_setting_generic
+    override fun getBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentRoomSettingGenericBinding {
+        return FragmentRoomSettingGenericBinding.inflate(inflater, container, false)
+    }
 
     override fun getMenuRes() = R.menu.vector_room_settings
+
+    override fun create(initialState: RoomSettingsViewState): RoomSettingsViewModel {
+        return viewModelFactory.create(initialState)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -79,10 +87,10 @@ class RoomSettingsFragment @Inject constructor(
         setupRoomHistoryVisibilitySharedActionViewModel()
         setupRoomJoinRuleSharedActionViewModel()
         controller.callback = this
-        setupToolbar(roomSettingsToolbar)
-        roomSettingsRecyclerView.configureWith(controller, hasFixedSize = true)
-        waiting_view_status_text.setText(R.string.please_wait)
-        waiting_view_status_text.isVisible = true
+        setupToolbar(views.roomSettingsToolbar)
+        views.roomSettingsRecyclerView.configureWith(controller, hasFixedSize = true)
+        views.waitingView.waitingStatusText.setText(R.string.please_wait)
+        views.waitingView.waitingStatusText.isVisible = true
 
         viewModel.observeViewEvents {
             when (it) {
@@ -101,7 +109,7 @@ class RoomSettingsFragment @Inject constructor(
         roomJoinRuleSharedActionViewModel
                 .observe()
                 .subscribe { action ->
-                    viewModel.handle(RoomSettingsAction.SetRoomJoinRule(action.roomJoinRule, action.roomGuestAccess))
+                    viewModel.handle(RoomSettingsAction.SetRoomJoinRule(action.roomJoinRule))
                 }
                 .disposeOnDestroyView()
     }
@@ -122,7 +130,7 @@ class RoomSettingsFragment @Inject constructor(
 
     override fun onDestroyView() {
         controller.callback = null
-        roomSettingsRecyclerView.cleanup()
+        views.roomSettingsRecyclerView.cleanup()
         super.onDestroyView()
     }
 
@@ -146,11 +154,12 @@ class RoomSettingsFragment @Inject constructor(
     }
 
     private fun renderRoomSummary(state: RoomSettingsViewState) {
-        waiting_view.isVisible = state.isLoading
+        views.waitingView.root.isVisible = state.isLoading
 
         state.roomSummary()?.let {
-            roomSettingsToolbarTitleView.text = it.displayName
-            avatarRenderer.render(it.toMatrixItem(), roomSettingsToolbarAvatarImageView)
+            views.roomSettingsToolbarTitleView.text = it.displayName
+            avatarRenderer.render(it.toMatrixItem(), views.roomSettingsToolbarAvatarImageView)
+            views.roomSettingsDecorationToolbarAvatarImageView.render(it.roomEncryptionTrustLevel)
         }
 
         invalidateOptionsMenu()
@@ -170,15 +179,16 @@ class RoomSettingsFragment @Inject constructor(
                 .show(childFragmentManager, "RoomHistoryVisibilityBottomSheet")
     }
 
-    override fun onRoomAliasesClicked() {
-        roomProfileSharedActionViewModel.post(RoomProfileSharedAction.OpenRoomAliasesSettings)
+    override fun onJoinRuleClicked() = withState(viewModel) { state ->
+        val currentJoinRule = state.newRoomJoinRules.newJoinRules ?: state.currentRoomJoinRules
+        RoomJoinRuleBottomSheet.newInstance(currentJoinRule)
+                .show(childFragmentManager, "RoomJoinRuleBottomSheet")
     }
 
-    override fun onJoinRuleClicked()  = withState(viewModel) { state ->
-        val currentJoinRule = state.newRoomJoinRules.newJoinRules ?: state.currentRoomJoinRules
+    override fun onToggleGuestAccess() = withState(viewModel) { state ->
         val currentGuestAccess = state.newRoomJoinRules.newGuestAccess ?: state.currentGuestAccess
-        RoomJoinRuleBottomSheet.newInstance(currentJoinRule, currentGuestAccess)
-                .show(childFragmentManager, "RoomJoinRuleBottomSheet")
+        val toggled = if (currentGuestAccess == GuestAccess.Forbidden) GuestAccess.CanJoin else GuestAccess.Forbidden
+        viewModel.handle(RoomSettingsAction.SetRoomGuestAccess(toggled))
     }
 
     override fun onImageReady(uri: Uri?) {
@@ -200,7 +210,6 @@ class RoomSettingsFragment @Inject constructor(
                 }
                 RoomSettingsViewState.AvatarAction.DeleteAvatar    -> {
                     /* Should not happen */
-                    Unit
                 }
                 is RoomSettingsViewState.AvatarAction.UpdateAvatar -> {
                     // Cancel the update of the avatar

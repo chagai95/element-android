@@ -1,29 +1,312 @@
-Changes in Element 1.0.13 (2020-XX-XX)
+Changes in Element 1.1.8 (2021-05-25)
+===================================================
+
+Improvements 🙌:
+ - Support Jitsi authentication (#3379)
+
+Bugfix 🐛:
+ - Space Invite by link not always displayed for public space (#3345)
+ - Wrong copy in share space bottom sheet (#3346)
+ - Fix a problem with database migration on nightly builds (#3335)
+ - Implement a workaround to render &lt;del&gt; and &lt;u&gt; in the timeline (#1817)
+ - Make sure the SDK can retrieve the secret storage if the system is upgraded (#3304)
+ - Spaces | Explore room list: the RoomId is displayed instead of name (#3371)
+ - Spaces | Personal spaces add DM - Web Parity (#3271)
+ - Spaces | Improve 'Leave Space' UX/UI (#3359)
+ - Don't create private spaces with encryption enabled (#3363)
+ - #+ button on lower right when looking at an empty space goes to an empty 'Explore rooms' (#3327)
+
+Build 🧱:
+ - Compile with Kotlin 1.5.10.
+ - Upgrade some dependencies: gradle wrapper, third party lib, etc.
+ - Sign APK with build tools 30.0.3
+
+Other changes:
+ - Add documentation on LoginWizard and RegistrationWizard (#3303)
+ - Setup towncrier tool (#3293)
+
+Changes in Element 1.1.7 (2021-05-12)
 ===================================================
 
 Features ✨:
- -
+ - Spaces beta
 
 Improvements 🙌:
- -
+ - Add ability to install APK from directly from Element (#2381)
+ - Delete and react to stickers (#3250)
+ - Compress video before sending (#442)
+ - Improve file too big error detection (#3245)
+ - User can now select video when selecting Gallery to send attachments to a room
+ - Add option to record a video from the camera
+ - Add the public icon on the rooms in the room list (#3292)
 
 Bugfix 🐛:
- -
-
-Translations 🗣:
- -
+ - Message states cosmetic changes (#3007)
+ - Fix exception in rxSingle (#3180)
+ - Do not invite the current user when creating a room (#3123)
+ - Fix color issues when the system theme is changed (#2738)
+ - Fix issues on Android 11 (#3067)
+ - Fix issue when opening encrypted files (#3186)
+ - Fix wording issue (#3242)
+ - Fix missing sender information after edits (#3184)
+ - Fix read marker not updating automatically (#3267)
+ - Sent video does not contains duration (#3272)
+ - Properly clean the back stack if the user cancel registration when waiting for email validation
+ - Fix read marker visibility/position when filtering some events 
+ - Fix user invitation in case of restricted profile api (#3306)
 
 SDK API changes ⚠️:
- -
+ - RegistrationWizard.createAccount() parameters are now all optional, following Matrix spec (#3205)
 
 Build 🧱:
- -
-
-Test:
- -
+ - Upgrade to gradle 7
+ - https://github.com/Piasy/BigImageViewer is now hosted on mavenCentral()
+ - Upgrade Realm to version 10.4.0
 
 Other changes:
- -
+ - New store descriptions
+ - `master` branch has been renamed to `main`. To apply change to your dev environment, run:
+```sh
+git branch -m master main
+git fetch origin
+git branch -u origin/main main
+# And optionally
+git remote prune origin
+```
+ - Allow cleartext (non-SSL) connections to Matrix servers on LAN hosts (#3166)
+
+Changes in Element 1.1.6 (2021-04-16)
+===================================================
+
+Bugfix 🐛:
+ - Fix crash on the timeline
+ - App crashes on "troubleshoot notifications" button (#3187)
+
+Changes in Element 1.1.5 (2021-04-15)
+===================================================
+
+Bugfix 🐛:
+ - Fix crash during Realm migration
+ - Fix crash when playing video (#3179)
+
+Changes in Element 1.1.4 (2021-04-09)
+===================================================
+
+Improvements 🙌:
+ - Split network request `/keys/query` into smaller requests (250 users max) (#2925)
+ - Crypto improvement | Bulk send NO_OLM withheld code
+ - Display the room shield in all room setting screens
+ - Improve message with Emoji only detection (#3017)
+ - Picture preview when replying. Also add the image preview in the message detail bottomsheet (#2916)
+ - Api interceptor to allow app developers peek responses (#2986)
+ - Update reactions to Unicode 13.1 (#2998)
+ - Be more robust when parsing some enums
+ - Improve timeline filtering (dissociate membership and profile events, display hidden events when highlighted, fix hidden item/read receipts behavior)
+ - Add better support for empty room name fallback (#3106)
+ - Room list improvements (paging)
+ - Fix quick click action (#3127)
+ - Get Event after a Push for a faster notification display in some conditions
+ - Always try to retry Http requests in case of 429 (#1300)
+ - registration availability endpoint added to matrix-sdk
+
+Bugfix 🐛:
+ - Fix bad theme change for the MainActivity
+ - Handle encrypted reactions (#2509)
+ - Disable URL preview for some domains (#2995)
+ - Fix avatar rendering for DMs, after initial sync (#2693)
+ - Fix mandatory parameter in API (#3065)
+ - If signout request fails, do not start LoginActivity, but restart the app (#3099)
+ - Retain keyword order in emoji import script, and update the generated file (#3147)
+
+SDK API changes ⚠️:
+ - Several Services have been migrated to coroutines (#2449)
+ - Removes filtering options on Timeline.
+
+Build 🧱:
+ - Properly exclude gms dependencies in fdroid build flavour which were pulled in through the jitsi SDK (#3125)
+
+Other changes:
+ - Add version details on the login screen, in debug or developer mode
+ - Migrate Retrofit interface to coroutine calls
+
+Changes in Element 1.1.3 (2021-03-18)
+===================================================
+
+Bugfix 🐛:
+ - Fix regression in UpdateTrustWorker (introduced in 1.1.2)
+ - Timeline : Fix ripple effect on text item and fix background color of separators.
+
+Changes in Element 1.1.2 (2021-03-16) (was not published tp GPlay prod)
+===================================================
+
+Improvements 🙌:
+ - Lazy storage of ReadReceipts
+ - Do not load room members in e2e after init sync
+
+Bugfix 🐛:
+ - Add option to cancel stuck messages at bottom of timeline see #516
+ - Ensure message are decrypted in the room list after a clear cache
+ - Regression: Video will not play upon tap, but only after swipe #2928
+ - Cross signing now works with servers with an explicit port in the servername
+
+Other changes:
+ - Change formatting on issue templates to proper headings.
+
+Changes in Element 1.1.1 (2021-03-10) (was not published tp GPlay prod)
+===================================================
+
+Improvements 🙌:
+ - Allow non-HTTPS connections to homeservers on Tor (#2941)
+ - Fetch homeserver type and version and display in a new setting screen and add info in rageshakes (#2831)
+ - Improve initial sync performance - split into 2 transactions (#983)
+ - PIP support for Jitsi call (#2418)
+ - Add tooltip for room quick actions
+ - Pre-share session keys when opening a room or start typing (#2771)
+ - Sending is now queuing by room and not uniquely to the session
+ - Improve Snackbar duration (#2929)
+ - Improve sending message state (#2937)
+
+Bugfix 🐛:
+ - Try to fix crash about UrlPreview (#2640)
+ - Be robust if Event.type is missing (#2946)
+ - Snappier message send status
+ - Fix MainActivity display (#2927)
+
+Translations 🗣:
+ - All string resources and translations have been moved to the application module. Weblate project for the SDK will be removed.
+
+Build 🧱:
+ - Update a lot of dependencies, with the help of dependabot.
+ - Add a script to download and install APK from the CI
+
+Other changes:
+ - Rework edition of event management
+
+Changes in Element 1.1.0 (2021-02-19)
+===================================================
+
+Features ✨:
+ - VoIP : support for VoIP V1 protocol, transfer call and dial-pad
+                                
+Improvements 🙌:
+ - VoIP : new tiles in timeline
+ - Improve room profile UX
+ - Upgrade Jitsi library from 2.9.3 to 3.1.0
+ - a11y improvements
+
+Bugfix 🐛:
+ - VoIP : fix audio devices output
+ - Fix crash after initial sync on Dendrite
+ - Fix crash reported by PlayStore (#2707)
+ - Ignore url override from credential if it is not valid (#2822)
+ - Fix crash when deactivating an account
+
+SDK API changes ⚠️:
+ - Migrate AuthenticationService API to coroutines (#2449)
+
+Other changes:
+ - New Dev Tools panel for developers
+ - Fix typos in CHANGES.md (#2811)
+ - Colors rework: first step: merge file `colors_riot.xml` to file `colors_riotx.xml` and rename the file to `colors.xml`
+
+Changes in Element 1.0.17 (2021-02-09)
+===================================================
+
+Improvements 🙌:
+ - Create a WidgetItemFactory and use it for better rendering of Jitsi widget change (video conference)
+ - Open image from URL Preview (#2705)
+
+Bugfix 🐛:
+ - Bug in WidgetContent.computeURL() (#2767)
+ - Duplicate thumbs | Mobile reactions for 👍 and 👎 are not the same as web (#2776)
+ - Join room by alias other federation error (#2778)
+ - HTML unescaping for URL preview (#2766)
+ - URL preview on reply fallback (#2756)
+ - RTL: some arrows should be rotated in RTL (#2757)
+ - Properly delete objects from Realm DB (#2765)
+
+Build 🧱:
+ - Upgrade build tools
+
+Other changes:
+ - Change app name from "Element (Riot.im)" to "Element"
+
+Changes in Element 1.0.16 (2021-02-04)
+===================================================
+
+Bugfix 🐛:
+ - Fix crash on API < 30 and light theme (#2774)
+
+Changes in Element 1.0.15 (2021-02-03)
+===================================================
+
+Features ✨:
+ - Social Login support
+
+Improvements 🙌:
+ - SSO support for cross signing (#1062)
+ - Deactivate account when logged in with SSO (#1264)
+ - SSO UIA doesn't work (#2754)
+
+Bugfix 🐛:
+ - Fix clear cache issue: sometimes, after a clear cache, there is still a token, so the init sync service is not started.
+ - Sidebar too large in horizontal orientation or tablets (#475)
+ - UrlPreview should be updated when the url is edited and changed (#2678)
+ - When receiving a new pepper from identity server, use it on the next hash lookup (#2708)
+ - Crashes reported by PlayStore (new in 1.0.14) (#2707)
+ - Widgets: Support $matrix_widget_id parameter (#2748)
+ - Data for Worker overload (#2721)
+ - Fix multiple tasks
+ - Object deletion in database is not complete (#2759)
+
+SDK API changes ⚠️:
+ - Increase targetSdkVersion to 30 (#2600)
+
+Build 🧱:
+ - Compile with Android SDK 30 (Android 11)
+
+Other changes:
+ - Update Dagger to 2.31 version so we can use the embedded AssistedInject feature 
+
+Changes in Element 1.0.14 (2021-01-15)
+===================================================
+
+Features ✨:
+ - Enable url previews for notices (#2562)
+ - Edit room permissions (#2471)
+
+Improvements 🙌:
+ - Add System theme option and set as default (#904, #2387)
+ - Store megolm outbound session to improve send time of first message after app launch.
+ - Warn user when they are leaving a not public room (#1460)
+ - Option to disable emoji keyboard (#2563)
+
+Bugfix 🐛:
+ - Unspecced msgType field in m.sticker (#2580)
+ - Wait for all room members to be known before sending a message to a e2e room (#2518)
+ - Url previews sometimes attached to wrong message (#2561)
+ - Room Topic not displayed correctly after visiting a link (#2551)
+ - Hiding membership events works the exact opposite (#2603)
+ - Tapping drawer having more than 1 room in notifications gives "malformed link" error (#2605)
+ - Sent image not displayed when opened immediately after sending (#409)
+ - Initial sync is not retried correctly when there is some network error. (#2632)
+ - Fix switch theme issue, and white field issue (#2599, #2528)
+ - Fix request too large Uri error when joining a room
+
+Translations 🗣:
+ - New language supported: Hebrew
+
+Build 🧱:
+ - Remove dependency to org.greenrobot.eventbus library
+
+Other changes:
+ - Migrate to ViewBindings (#1072)
+
+Changes in Element 1.0.13 (2020-12-18)
+===================================================
+
+Bugfix 🐛:
+ - Fix MSC2858 implementation details (#2540)
 
 Changes in Element 1.0.12 (2020-12-15)
 ===================================================
@@ -370,7 +653,7 @@ Improvements 🙌:
  - Sending events is now retried only 3 times, so we avoid blocking the sending queue too long.
  - Display warning when fail to send events in room list
  - Improve UI of edit role action in member profile
- - Moderation | New screen to display list of banned users in room settings, with unban action
+ - Moderation | New screen to display list of banned users in room settings, with unban action
 
 Bugfix 🐛:
  - Fix theme issue on Room directory screen (#1613)
@@ -1090,36 +1373,3 @@ Changes in RiotX 0.1.0 (2019-07-11)
 First release!
 
 Mode details here: https://medium.com/@RiotChat/introducing-the-riotx-beta-for-android-b17952e8f771
-
-
-=======================================================
-+        TEMPLATE WHEN PREPARING A NEW RELEASE        +
-=======================================================
-
-
-Changes in Element 1.X.X (2020-XX-XX)
-===================================================
-
-Features ✨:
- -
-
-Improvements 🙌:
- -
-
-Bugfix 🐛:
- -
-
-Translations 🗣:
- -
-
-SDK API changes ⚠️:
- - 
-
-Build 🧱:
- -
-
-Test:
- -
-
-Other changes:
- -

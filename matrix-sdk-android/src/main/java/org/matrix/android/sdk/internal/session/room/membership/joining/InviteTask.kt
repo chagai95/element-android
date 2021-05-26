@@ -16,10 +16,10 @@
 
 package org.matrix.android.sdk.internal.session.room.membership.joining
 
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.session.room.RoomAPI
 import org.matrix.android.sdk.internal.task.Task
-import org.greenrobot.eventbus.EventBus
 import javax.inject.Inject
 
 internal interface InviteTask : Task<InviteTask.Params, Unit> {
@@ -32,15 +32,17 @@ internal interface InviteTask : Task<InviteTask.Params, Unit> {
 
 internal class DefaultInviteTask @Inject constructor(
         private val roomAPI: RoomAPI,
-        private val eventBus: EventBus
+        private val globalErrorReceiver: GlobalErrorReceiver
 ) : InviteTask {
 
     override suspend fun execute(params: InviteTask.Params) {
-        return executeRequest(eventBus) {
-            val body = InviteBody(params.userId, params.reason)
-            apiCall = roomAPI.invite(params.roomId, body)
-            isRetryable = true
-            maxRetryCount = 3
+        val body = InviteBody(params.userId, params.reason)
+        return executeRequest(
+                globalErrorReceiver,
+                canRetry = true,
+                maxRetriesCount = 3
+        ) {
+            roomAPI.invite(params.roomId, body)
         }
     }
 }

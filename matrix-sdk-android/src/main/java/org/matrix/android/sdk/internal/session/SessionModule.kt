@@ -26,17 +26,19 @@ import dagger.Provides
 import dagger.multibindings.IntoSet
 import io.realm.RealmConfiguration
 import okhttp3.OkHttpClient
-import org.greenrobot.eventbus.EventBus
 import org.matrix.android.sdk.api.MatrixConfiguration
 import org.matrix.android.sdk.api.auth.data.Credentials
 import org.matrix.android.sdk.api.auth.data.HomeServerConnectionConfig
 import org.matrix.android.sdk.api.auth.data.SessionParams
 import org.matrix.android.sdk.api.auth.data.sessionId
 import org.matrix.android.sdk.api.crypto.MXCryptoConfig
-import org.matrix.android.sdk.api.session.InitialSyncProgressService
 import org.matrix.android.sdk.api.session.Session
+import org.matrix.android.sdk.api.session.SessionLifecycleObserver
 import org.matrix.android.sdk.api.session.accountdata.AccountDataService
+import org.matrix.android.sdk.api.session.events.EventService
 import org.matrix.android.sdk.api.session.homeserver.HomeServerCapabilitiesService
+import org.matrix.android.sdk.api.session.initsync.InitialSyncProgressService
+import org.matrix.android.sdk.api.session.openid.OpenIdService
 import org.matrix.android.sdk.api.session.permalinks.PermalinkService
 import org.matrix.android.sdk.api.session.securestorage.SecureStorageService
 import org.matrix.android.sdk.api.session.securestorage.SharedSecretStorageService
@@ -61,9 +63,10 @@ import org.matrix.android.sdk.internal.di.UnauthenticatedWithCertificate
 import org.matrix.android.sdk.internal.di.UnauthenticatedWithCertificateWithProgress
 import org.matrix.android.sdk.internal.di.UserId
 import org.matrix.android.sdk.internal.di.UserMd5
-import org.matrix.android.sdk.internal.eventbus.EventBusTimberLogger
 import org.matrix.android.sdk.internal.network.DefaultNetworkConnectivityChecker
 import org.matrix.android.sdk.internal.network.FallbackNetworkCallbackStrategy
+import org.matrix.android.sdk.internal.network.GlobalErrorHandler
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.NetworkCallbackStrategy
 import org.matrix.android.sdk.internal.network.NetworkConnectivityChecker
 import org.matrix.android.sdk.internal.network.PreferredNetworkCallbackStrategy
@@ -75,13 +78,18 @@ import org.matrix.android.sdk.internal.network.token.AccessTokenProvider
 import org.matrix.android.sdk.internal.network.token.HomeserverAccessTokenProvider
 import org.matrix.android.sdk.internal.session.call.CallEventProcessor
 import org.matrix.android.sdk.internal.session.download.DownloadProgressInterceptor
+import org.matrix.android.sdk.internal.session.events.DefaultEventService
 import org.matrix.android.sdk.internal.session.homeserver.DefaultHomeServerCapabilitiesService
 import org.matrix.android.sdk.internal.session.identity.DefaultIdentityService
+import org.matrix.android.sdk.internal.session.initsync.DefaultInitialSyncProgressService
 import org.matrix.android.sdk.internal.session.integrationmanager.IntegrationManager
+import org.matrix.android.sdk.internal.session.openid.DefaultOpenIdService
 import org.matrix.android.sdk.internal.session.permalinks.DefaultPermalinkService
 import org.matrix.android.sdk.internal.session.room.EventRelationsAggregationProcessor
 import org.matrix.android.sdk.internal.session.room.create.RoomCreateEventProcessor
 import org.matrix.android.sdk.internal.session.room.prune.RedactionEventProcessor
+import org.matrix.android.sdk.internal.session.room.send.queue.EventSenderProcessor
+import org.matrix.android.sdk.internal.session.room.send.queue.EventSenderProcessorCoroutine
 import org.matrix.android.sdk.internal.session.room.tombstone.RoomTombstoneEventProcessor
 import org.matrix.android.sdk.internal.session.securestorage.DefaultSecureStorageService
 import org.matrix.android.sdk.internal.session.typing.DefaultTypingUsersTracker
@@ -259,16 +267,6 @@ internal abstract class SessionModule {
         @JvmStatic
         @Provides
         @SessionScope
-        fun providesEventBus(): EventBus {
-            return EventBus
-                    .builder()
-                    .logger(EventBusTimberLogger())
-                    .build()
-        }
-
-        @JvmStatic
-        @Provides
-        @SessionScope
         fun providesNetworkCallbackStrategy(fallbackNetworkCallbackStrategy: Provider<FallbackNetworkCallbackStrategy>,
                                             preferredNetworkCallbackStrategy: Provider<PreferredNetworkCallbackStrategy>
         ): NetworkCallbackStrategy {
@@ -293,6 +291,9 @@ internal abstract class SessionModule {
 
     @Binds
     abstract fun bindSession(session: DefaultSession): Session
+
+    @Binds
+    abstract fun bindGlobalErrorReceiver(handler: GlobalErrorHandler): GlobalErrorReceiver
 
     @Binds
     abstract fun bindNetworkConnectivityChecker(checker: DefaultNetworkConnectivityChecker): NetworkConnectivityChecker
@@ -346,6 +347,14 @@ internal abstract class SessionModule {
     abstract fun bindRealmSessionProvider(provider: RealmSessionProvider): SessionLifecycleObserver
 
     @Binds
+    @IntoSet
+    abstract fun bindSessionCoroutineScopeHolder(holder: SessionCoroutineScopeHolder): SessionLifecycleObserver
+
+    @Binds
+    @IntoSet
+    abstract fun bindEventSenderProcessorAsSessionLifecycleObserver(processor: EventSenderProcessorCoroutine): SessionLifecycleObserver
+
+    @Binds
     abstract fun bindInitialSyncProgressService(service: DefaultInitialSyncProgressService): InitialSyncProgressService
 
     @Binds
@@ -358,14 +367,23 @@ internal abstract class SessionModule {
     abstract fun bindAccountDataService(service: DefaultAccountDataService): AccountDataService
 
     @Binds
+    abstract fun bindEventService(service: DefaultEventService): EventService
+
+    @Binds
     abstract fun bindSharedSecretStorageService(service: DefaultSharedSecretStorageService): SharedSecretStorageService
 
     @Binds
     abstract fun bindPermalinkService(service: DefaultPermalinkService): PermalinkService
 
     @Binds
+    abstract fun bindOpenIdTokenService(service: DefaultOpenIdService): OpenIdService
+
+    @Binds
     abstract fun bindTypingUsersTracker(tracker: DefaultTypingUsersTracker): TypingUsersTracker
 
     @Binds
     abstract fun bindRedactEventTask(task: DefaultRedactEventTask): RedactEventTask
+
+    @Binds
+    abstract fun bindEventSenderProcessor(processor: EventSenderProcessorCoroutine): EventSenderProcessor
 }

@@ -17,7 +17,6 @@
 package org.matrix.android.sdk.internal.session.media
 
 import com.zhuinden.monarchy.Monarchy
-import org.greenrobot.eventbus.EventBus
 import org.matrix.android.sdk.api.cache.CacheStrategy
 import org.matrix.android.sdk.api.session.media.PreviewUrlData
 import org.matrix.android.sdk.api.util.JsonDict
@@ -25,9 +24,11 @@ import org.matrix.android.sdk.internal.database.model.PreviewUrlCacheEntity
 import org.matrix.android.sdk.internal.database.query.get
 import org.matrix.android.sdk.internal.database.query.getOrCreate
 import org.matrix.android.sdk.internal.di.SessionDatabase
+import org.matrix.android.sdk.internal.network.GlobalErrorReceiver
 import org.matrix.android.sdk.internal.network.executeRequest
 import org.matrix.android.sdk.internal.task.Task
 import org.matrix.android.sdk.internal.util.awaitTransaction
+import org.matrix.android.sdk.internal.util.unescapeHtml
 import java.util.Date
 import javax.inject.Inject
 
@@ -41,7 +42,7 @@ internal interface GetPreviewUrlTask : Task<GetPreviewUrlTask.Params, PreviewUrl
 
 internal class DefaultGetPreviewUrlTask @Inject constructor(
         private val mediaAPI: MediaAPI,
-        private val eventBus: EventBus,
+        private val globalErrorReceiver: GlobalErrorReceiver,
         @SessionDatabase private val monarchy: Monarchy
 ) : GetPreviewUrlTask {
 
@@ -64,8 +65,8 @@ internal class DefaultGetPreviewUrlTask @Inject constructor(
     }
 
     private suspend fun doRequest(url: String, timestamp: Long?): PreviewUrlData {
-        return executeRequest<JsonDict>(eventBus) {
-            apiCall = mediaAPI.getPreviewUrlData(url, timestamp)
+        return executeRequest(globalErrorReceiver) {
+            mediaAPI.getPreviewUrlData(url, timestamp)
         }
                 .toPreviewUrlData(url)
     }
@@ -73,9 +74,9 @@ internal class DefaultGetPreviewUrlTask @Inject constructor(
     private fun JsonDict.toPreviewUrlData(url: String): PreviewUrlData {
         return PreviewUrlData(
                 url = (get("og:url") as? String) ?: url,
-                siteName = get("og:site_name") as? String,
-                title = get("og:title") as? String,
-                description = get("og:description") as? String,
+                siteName = (get("og:site_name") as? String)?.unescapeHtml(),
+                title = (get("og:title") as? String)?.unescapeHtml(),
+                description = (get("og:description") as? String)?.unescapeHtml(),
                 mxcUrl = get("og:image") as? String
         )
     }
